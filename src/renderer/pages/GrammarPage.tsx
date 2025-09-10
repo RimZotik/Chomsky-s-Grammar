@@ -1062,26 +1062,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         ✗
                       </button>
                     </div>
-
-                    {/* Уведомления об ошибках для правил */}
-                    {errors.ruleLeft && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleLeft}
-                      />
-                    )}
-                    {errors.ruleRight && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleRight}
-                      />
-                    )}
-                    {errors.ruleGeneral && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleGeneral}
-                      />
-                    )}
                   </div>
                 )}
               </div>

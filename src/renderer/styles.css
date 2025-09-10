@@ -580,11 +580,16 @@ body {
   font-weight: bold;
   color: #667eea;
   min-width: 30px;
+  flex-shrink: 0;
 }
 
 .rule-text {
   flex: 1;
   font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* Позволяет flex элементу сжиматься, но не до нуля */
 }
 
 .remove-rule-btn {
@@ -598,6 +603,7 @@ body {
   font-size: 14px;
   font-weight: bold;
   transition: all 0.2s;
+  flex-shrink: 0; /* Предотвращает сжатие кнопки */
 }
 
 .remove-rule-btn:hover {
@@ -653,12 +659,18 @@ body {
   width: 50px;
   text-align: center;
   font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rule-input.right {
   flex: 1;
   min-width: 80px;
   max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rule-input.error {
@@ -671,6 +683,7 @@ body {
   font-weight: bold;
   color: #667eea;
   margin: 0 0.25rem;
+  flex-shrink: 0; /* Предотвращает сжатие стрелки */
 }
 
 .confirm-rule-btn,
@@ -682,6 +695,7 @@ body {
   cursor: pointer;
   font-weight: bold;
   transition: all 0.2s;
+  flex-shrink: 0; /* Предотвращает сжатие кнопок */
 }
 
 .confirm-rule-btn {
