@@ -6,6 +6,7 @@ interface GrammarPageProps {
   user: UserData;
   onNavigate: (page: AppPage) => void;
   onSaveGrammar: (grammar: Grammar) => void;
+  initialGrammar?: Grammar;
 }
 
 interface GrammarForm {
@@ -24,6 +25,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   user,
   onNavigate,
   onSaveGrammar,
+  initialGrammar,
 }) => {
   const terminalsInputRef = useRef<HTMLInputElement>(null);
   const nonTerminalsInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +71,27 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
   // Загружаем сохраненную грамматику при монтировании компонента
   useEffect(() => {
+    // Сначала проверяем initialGrammar (загруженную из файла)
+    if (initialGrammar) {
+      const grammarForm: GrammarForm = {
+        terminals: initialGrammar.terminals.join(", "),
+        nonTerminals: initialGrammar.nonTerminals.join(", "),
+        startSymbol: initialGrammar.startSymbol,
+        rules: initialGrammar.rules,
+      };
+
+      // Убеждаемся, что S всегда присутствует в нетерминалах
+      if (!grammarForm.nonTerminals.includes("S")) {
+        grammarForm.nonTerminals = grammarForm.nonTerminals
+          ? `S, ${grammarForm.nonTerminals}`
+          : "S";
+      }
+      grammarForm.startSymbol = "S"; // Фиксируем начальный символ как S
+      setGrammarForm(grammarForm);
+      return;
+    }
+
+    // Если нет initialGrammar, загружаем из sessionStorage
     const savedGrammar = loadGrammarFromStorage();
     if (savedGrammar) {
       // Убеждаемся, что S всегда присутствует в нетерминалах
@@ -80,7 +103,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       savedGrammar.startSymbol = "S"; // Фиксируем начальный символ как S
       setGrammarForm(savedGrammar);
     }
-  }, []);
+  }, [initialGrammar]);
 
   // Автосохранение при изменении грамматики
   useEffect(() => {
@@ -112,7 +135,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
   // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон + пробел)
   const validateTerminals = (char: string): boolean => {
-    return /^[а-я]$/.test(char) || char === " ";
+    return /^[а-я]$/.test(char) || char === " " || char === "ъ";
   };
 
   // Валидация нетерминальных символов (английские заглавные буквы)
@@ -308,14 +331,17 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
         // Специальная обработка для символа ъ (эпсилон)
         if (key === "ъ") {
-          setErrors((prev) => ({
-            ...prev,
-            terminals: `Пустой символ (ъ) уже есть в VT`,
-          }));
-          setTimeout(() => {
-            setErrors((prev) => ({ ...prev, terminals: "" }));
-          }, 3000);
-          return;
+          // Проверяем, есть ли уже эпсилон в терминалах
+          if (symbols.includes("ъ")) {
+            setErrors((prev) => ({
+              ...prev,
+              terminals: `Символ эпсилон (ъ → ε) уже существует в множестве терминальных символов`,
+            }));
+            setTimeout(() => {
+              setErrors((prev) => ({ ...prev, terminals: "" }));
+            }, 3000);
+            return;
+          }
         }
 
         // Специальная обработка для пробела - сохраняем как _
@@ -337,8 +363,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           }
         }
 
-        // Проверяем дублирование
-        if (symbols.includes(symbolToAdd)) {
+        // Проверяем дублирование для обычных символов
+        if (key !== "ъ" && symbols.includes(symbolToAdd)) {
           setErrors((prev) => ({
             ...prev,
             terminals: `Символ "${displaySymbol}" уже существует в множестве терминальных символов`,
@@ -382,7 +408,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         setErrors((prev) => ({
           ...prev,
           terminals:
-            "Можно вводить только русские строчные символы (а-я) и пробел (_)",
+            "Можно вводить только русские строчные символы (а-я), пробел (_) и символ эпсилон (ъ → ε)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, terminals: "" }));

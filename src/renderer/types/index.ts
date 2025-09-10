@@ -18,3 +18,10 @@ export interface ProductionRule {
   left: string;
   right: string;
 }
+
+export interface AppData {
+  user: UserData;
+  grammar?: Grammar;
+  settings?: any; // Настройки генерации слов и другие параметры
+  version: string;
+}

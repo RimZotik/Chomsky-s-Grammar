@@ -113,6 +113,77 @@ body {
   cursor: not-allowed;
 }
 
+.auth-button--secondary {
+  background-color: #f7fafc;
+  color: #4a5568;
+  border: 2px solid #e2e8f0;
+  opacity: 1;
+}
+
+.auth-button--secondary:hover {
+  background-color: #edf2f7;
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.auth-divider {
+  position: relative;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+.auth-divider span {
+  background: white;
+  padding: 0 1rem;
+  color: #718096;
+  font-size: 0.875rem;
+  position: relative;
+  z-index: 2;
+}
+
+/* File load section */
+.file-load-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.separator {
+  position: relative;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.separator::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+.separator span {
+  background: white;
+  padding: 0 1rem;
+  color: #718096;
+  font-size: 0.875rem;
+  position: relative;
+  z-index: 2;
+}
+
 /* Menu Page Styles */
 .menu-page {
   min-height: 100vh;
