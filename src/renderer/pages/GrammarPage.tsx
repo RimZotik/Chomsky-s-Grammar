@@ -73,8 +73,13 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   useEffect(() => {
     // Сначала проверяем initialGrammar (загруженную из файла)
     if (initialGrammar) {
+      // Преобразуем пробелы в символы подчеркивания для отображения
+      const processedTerminals = initialGrammar.terminals.map((terminal) =>
+        terminal === " " ? "_" : terminal
+      );
+
       const grammarForm: GrammarForm = {
-        terminals: initialGrammar.terminals.join(", "),
+        terminals: processedTerminals.join(", "),
         nonTerminals: initialGrammar.nonTerminals.join(", "),
         startSymbol: initialGrammar.startSymbol,
         rules: initialGrammar.rules,
@@ -146,6 +151,11 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   // Функция для отображения ъ как ε (эпсилон) и пробела как _
   const displayEpsilon = (text: string): string => {
     return text.replace(/ъ/g, "ε").replace(/ /g, "_");
+  };
+
+  // Функция для отображения терминалов (только ъ → ε, пробелы остаются)
+  const displayTerminals = (text: string): string => {
+    return text.replace(/ъ/g, "ε");
   };
 
   // Функция для преобразования _ обратно в пробел для генерации слов
@@ -652,10 +662,16 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
   const getTerminalsList = (): string[] => {
     const userTerminals = parseSymbolString(grammarForm.terminals).map(
-      (symbol) => (symbol === "_" ? " " : symbol)
+      (symbol) => {
+        if (symbol === "_") return " "; // Подчеркивание в пробел
+        if (symbol === "ъ") return EPSILON; // ъ в эпсилон
+        return symbol;
+      }
     );
     // Логически эпсилон всегда есть в VT, но не отображается в поле
-    return [...userTerminals, EPSILON];
+    // Если пользователь ввел ъ, то эпсилон уже в списке
+    const hasEpsilon = userTerminals.includes(EPSILON);
+    return hasEpsilon ? userTerminals : [...userTerminals, EPSILON];
   };
 
   const getNonTerminalsList = (): string[] => {
@@ -901,7 +917,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   ref={terminalsInputRef}
                   type="text"
                   className={`form-input ${errors.terminals ? "error" : ""}`}
-                  value={grammarForm.terminals}
+                  value={displayTerminals(grammarForm.terminals)}
                   onKeyDown={handleTerminalsInput}
                   onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
                   placeholder="а, б, в, _ (пробел) ..."
