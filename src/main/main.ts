@@ -1,6 +1,13 @@
 import { app, BrowserWindow, Menu, dialog } from "electron";
 import * as path from "path";
 
+// Отключаем GPU на Windows для избежания ошибок (ДО инициализации)
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-gpu-sandbox");
+  app.commandLine.appendSwitch("disable-software-rasterizer");
+}
+
 let mainWindow: BrowserWindow;
 
 function createMenu() {
@@ -53,10 +60,18 @@ function createWindow(): void {
     resizable: false, // Запрет изменения размера
     maximizable: false, // Запрет разворачивания на весь экран
     center: true, // Центрирование окна
+    show: false, // Не показывать окно до полной загрузки
+    backgroundColor: "#f8fafc", // Цвет фона для избежания мигания
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
     },
+  });
+
+  // Показать окно только после полной загрузки
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
   });
 
   // Создание меню
@@ -72,7 +87,9 @@ function createWindow(): void {
 }
 
 // Этот метод будет вызван, когда Electron завершит инициализацию
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+});
 
 // Завершение работы, когда все окна закрыты
 app.on("window-all-closed", () => {
