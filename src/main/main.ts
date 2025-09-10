@@ -1,7 +1,49 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu, dialog } from "electron";
 import * as path from "path";
 
 let mainWindow: BrowserWindow;
+
+function createMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: "Инфо",
+      submenu: [
+        {
+          label: "Использование",
+          click: () => {
+            dialog.showMessageBox(mainWindow, {
+              type: "info",
+              title: "Использование",
+              message: "Инструкция по использованию",
+              detail:
+                "Это приложение предназначено для работы с грамматикой Хомского.\n\n" +
+                "1. Введите свои данные на стартовой странице\n" +
+                '2. Выберите "Ввод грамматики" для определения правил\n' +
+                '3. Выберите "Построение слов" для генерации слов по правилам',
+            });
+          },
+        },
+        {
+          label: "О программе",
+          click: () => {
+            dialog.showMessageBox(mainWindow, {
+              type: "info",
+              title: "О программе",
+              message: "Грамматика Хомского",
+              detail:
+                "Лабораторная работа по изучению формальных грамматик.\n\n" +
+                "Версия: 1.0.0\n" +
+                "Технологии: Electron, React, TypeScript",
+            });
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 function createWindow(): void {
   // Создание окна браузера
@@ -16,6 +58,9 @@ function createWindow(): void {
       contextIsolation: true,
     },
   });
+
+  // Создание меню
+  createMenu();
 
   // Загрузка index.html приложения
   mainWindow.loadFile(path.join(__dirname, "index.html"));

@@ -20,9 +20,6 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
             ← Назад
           </button>
           <h1>Построение слов</h1>
-          <div className="user-info-small">
-            {user.lastName} {user.firstName}
-          </div>
         </div>
 
         <div className="page-content">

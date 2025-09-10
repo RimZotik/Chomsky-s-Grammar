@@ -20,9 +20,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
             ← Назад
           </button>
           <h1>Ввод грамматики</h1>
-          <div className="user-info-small">
-            {user.lastName} {user.firstName}
-          </div>
         </div>
 
         <div className="page-content">

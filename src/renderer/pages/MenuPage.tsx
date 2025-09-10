@@ -50,7 +50,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ user, onNavigate, onLogout }) => {
         </div>
 
         <div className="menu-footer">
-          <button className="logout-button" onClick={onLogout}>
+          <button
+            className="logout-button logout-button--danger"
+            onClick={onLogout}
+          >
             Выйти
           </button>
         </div>
