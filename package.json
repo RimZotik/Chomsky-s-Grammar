@@ -1,0 +1,45 @@
+{
+  "name": "chomsky-grammar",
+  "version": "1.0.0",
+  "description": "Electron + React + TypeScript application",
+  "main": "dist/main.js",
+  "homepage": "./",
+  "scripts": {
+    "build": "webpack --mode=development",
+    "build:watch": "webpack --mode=development --watch",
+    "dev": "concurrently \"npm run build:watch\" \"wait-on dist/main.js && electron .\" --kill-others"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/electron": "^1.4.38",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "concurrently": "^8.2.2",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.8.1",
+    "electron": "^27.1.3",
+    "eslint": "^8.54.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "html-webpack-plugin": "^5.5.4",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.2",
+    "wait-on": "^7.2.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
