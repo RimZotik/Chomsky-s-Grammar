@@ -29,7 +29,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   const nonTerminalsInputRef = useRef<HTMLInputElement>(null);
 
   const [grammarForm, setGrammarForm] = useState<GrammarForm>({
-    terminals: "ъ",
+    terminals: "",
     nonTerminals: "S",
     startSymbol: "S",
     rules: [],
@@ -43,15 +43,27 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   const [showAddRule, setShowAddRule] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Функции для сохранения и загрузки грамматики (отключены)
+  // Константа для символа эпсилон
+  const EPSILON = "ε";
+
+  // Функции для сохранения и загрузки грамматики (используем sessionStorage)
   const saveGrammarToStorage = (grammar: GrammarForm) => {
-    // Сохранение отключено по требованию
-    console.log("Сохранение грамматики отключено");
+    try {
+      sessionStorage.setItem("currentGrammar", JSON.stringify(grammar));
+    } catch (error) {
+      console.log("Ошибка сохранения грамматики:", error);
+    }
   };
 
   const loadGrammarFromStorage = (): GrammarForm | null => {
-    // Загрузка отключена по требованию
-    console.log("Загрузка грамматики отключена");
+    try {
+      const savedGrammar = sessionStorage.getItem("currentGrammar");
+      if (savedGrammar) {
+        return JSON.parse(savedGrammar);
+      }
+    } catch (error) {
+      console.log("Ошибка загрузки грамматики:", error);
+    }
     return null;
   };
 
@@ -80,6 +92,23 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       saveGrammarToStorage(grammarForm);
     }
   }, [grammarForm]);
+
+  // Автоматическое скрытие уведомлений об ошибках правил
+  useEffect(() => {
+    if (errors.ruleLeft || errors.ruleRight || errors.ruleGeneral) {
+      const timer = setTimeout(() => {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.ruleLeft;
+          delete newErrors.ruleRight;
+          delete newErrors.ruleGeneral;
+          return newErrors;
+        });
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [errors.ruleLeft, errors.ruleRight, errors.ruleGeneral]);
 
   // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон)
   const validateTerminals = (char: string): boolean => {
@@ -276,7 +305,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         if (key === "ъ") {
           setErrors((prev) => ({
             ...prev,
-            terminals: `Символ "ъ" (эпсилон) уже существует в множестве терминальных символов`,
+            terminals: `Пустой символ (ъ) уже есть в VT`,
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -328,7 +357,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          terminals: "Можно вводить только символы из множества русских строчных букв (а-я)",
+          terminals: "Можно вводить только русские строчные символы (а-я)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -519,7 +548,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          nonTerminals: "Можно вводить только символы из множества английских заглавных букв (A-Z)",
+          nonTerminals:
+            "Можно вводить только английские прописные символы (A-Z)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, nonTerminals: "" }));
@@ -549,7 +579,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         } else {
           setErrors((prev) => ({
             ...prev,
-            startSymbol: "Символ должен существовать в множестве нетерминальных символов",
+            startSymbol:
+              "Символ должен существовать в множестве нетерминальных символов",
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, startSymbol: "" }));
@@ -558,7 +589,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          startSymbol: "Можно вводить только символы из множества английских заглавных букв (A-Z)",
+          startSymbol:
+            "Можно вводить только английские прописные символы (A-Z)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, startSymbol: "" }));
@@ -568,7 +600,9 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   };
 
   const getTerminalsList = (): string[] => {
-    return parseSymbolString(grammarForm.terminals);
+    const userTerminals = parseSymbolString(grammarForm.terminals);
+    // Логически эпсилон всегда есть в VT, но не отображается в поле
+    return [...userTerminals, EPSILON];
   };
 
   const getNonTerminalsList = (): string[] => {
@@ -583,7 +617,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   const validateRuleRight = (value: string): boolean => {
     const terminals = getTerminalsList();
     const nonTerminals = getNonTerminalsList();
-    const allSymbols = [...terminals, ...nonTerminals];
+    const allSymbols = [...terminals, ...nonTerminals, EPSILON];
 
     // Проверяем каждый символ в правой части
     for (let char of value) {
@@ -599,21 +633,41 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     let isValid = true;
 
     if (field === "left") {
+      if (value.length > 1) {
+        newErrors.ruleLeft = "Можно вводить только один символ из VN";
+        setErrors(newErrors);
+        return;
+      }
+
       isValid = validateRuleLeft(value);
       if (!isValid && value.length > 0) {
-        newErrors.ruleLeft = "Введите символ из множества нетерминальных символов";
+        newErrors.ruleLeft = "Можно вводить только символы из VN";
+        setErrors(newErrors);
         return;
       } else {
         delete newErrors.ruleLeft;
       }
     } else {
-      isValid = validateRuleRight(value);
+      // Для правой части просто заменяем ъ на эпсилон без дополнительных проверок
+      let processedValue = value.replace(/ъ/g, EPSILON);
+
+      // Проверяем только на множественные эпсилоны в результате
+      const epsilonCount = (processedValue.match(/ε/g) || []).length;
+      if (epsilonCount > 1) {
+        newErrors.ruleRight = "Можно вводить только один пустой символ (ъ)";
+        setErrors(newErrors);
+        return;
+      }
+
+      // Проверяем валидность остальных символов
+      isValid = validateRuleRight(processedValue);
       if (!isValid) {
-        newErrors.ruleRight =
-          "Используйте только символы из множеств терминальных и нетерминальных символов";
+        newErrors.ruleRight = "Можно вводить только символы из VT и VN";
+        setErrors(newErrors);
         return;
       } else {
         delete newErrors.ruleRight;
+        value = processedValue; // Используем обработанное значение
       }
     }
 
@@ -634,9 +688,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           ...prev,
           ruleGeneral: "Нельзя создавать правило из символа в этот же символ",
         }));
-        setTimeout(() => {
-          setErrors((prev) => ({ ...prev, ruleGeneral: "" }));
-        }, 3000);
         return;
       }
 
@@ -646,9 +697,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           ...prev,
           ruleGeneral: `Правило "${newRule.left} → ${newRule.right}" уже существует`,
         }));
-        setTimeout(() => {
-          setErrors((prev) => ({ ...prev, ruleGeneral: "" }));
-        }, 3000);
         return;
       }
 
@@ -658,9 +706,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           ...prev,
           ruleGeneral: "Максимальное количество правил: 99",
         }));
-        setTimeout(() => {
-          setErrors((prev) => ({ ...prev, ruleGeneral: "" }));
-        }, 3000);
         return;
       }
 
@@ -689,7 +734,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
   const clearGrammar = () => {
     const defaultGrammar = {
-      terminals: "ъ",
+      terminals: "",
       nonTerminals: "S",
       startSymbol: "S",
       rules: [],
@@ -698,7 +743,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     setNewRule({ left: "", right: "" });
     setShowAddRule(false);
     setErrors({});
-    // localStorage.removeItem удален - сохранение отключено
+    // Очищаем sessionStorage
+    sessionStorage.removeItem("currentGrammar");
   };
 
   const saveGrammar = () => {
@@ -753,7 +799,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   value={grammarForm.terminals}
                   onKeyDown={handleTerminalsInput}
                   onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
-                  placeholder="а, б, в...."
+                  placeholder="а, б, в ..."
                 />
                 {errors.terminals && (
                   <FieldNotification
@@ -805,6 +851,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
             {/* Правила вывода */}
             <div className="form-row">
               <label className="form-label">P (правила вывода):</label>
+
               <div className="rules-container">
                 {grammarForm.rules.map((rule, index) => (
                   <div key={index} className="rule-item">
@@ -827,7 +874,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                     onClick={() => setShowAddRule(true)}
                     disabled={
                       !grammarForm.nonTerminals ||
-                      !grammarForm.terminals ||
                       grammarForm.rules.length >= 99
                     }
                   >
@@ -836,33 +882,29 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   </button>
                 ) : (
                   <div className="add-rule-container">
-                    {(errors.ruleLeft ||
-                      errors.ruleRight ||
-                      errors.ruleGeneral) && (
-                      <div className="rule-errors-outside">
-                        {errors.ruleLeft && (
-                          <FieldNotification
-                            type="error"
-                            message={errors.ruleLeft}
-                            show={true}
-                          />
-                        )}
-                        {errors.ruleRight && (
-                          <FieldNotification
-                            type="error"
-                            message={errors.ruleRight}
-                            show={true}
-                          />
-                        )}
-                        {errors.ruleGeneral && (
-                          <FieldNotification
-                            type="error"
-                            message={errors.ruleGeneral}
-                            show={true}
-                          />
-                        )}
-                      </div>
+                    {/* Уведомления об ошибках правил */}
+                    {errors.ruleLeft && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleLeft}
+                        show={true}
+                      />
                     )}
+                    {errors.ruleRight && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleRight}
+                        show={true}
+                      />
+                    )}
+                    {errors.ruleGeneral && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleGeneral}
+                        show={true}
+                      />
+                    )}
+
                     <div className="add-rule-form">
                       <input
                         type="text"

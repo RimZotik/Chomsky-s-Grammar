@@ -24,6 +24,8 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   const [availableRules, setAvailableRules] = useState<ProductionRule[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
   const [savedWords, setSavedWords] = useState<string[]>([]);
+  const [showSavedWords, setShowSavedWords] = useState(false);
+  const savedWordsRef = useRef<HTMLDivElement>(null);
 
   const derivationScrollRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +78,26 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     }
   }, [isCompleted, derivationSteps]);
 
+  // Закрытие dropdown при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        savedWordsRef.current &&
+        !savedWordsRef.current.contains(event.target as Node)
+      ) {
+        setShowSavedWords(false);
+      }
+    };
+
+    if (showSavedWords) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSavedWords]);
+
   // Обработчик применения правила
   const applyRule = (rule: ProductionRule, ruleIndex: number) => {
     if (isCompleted) return;
@@ -85,8 +107,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     // Проверяем, доступно ли правило
     if (!currentResult.includes(rule.left)) return;
 
-    // Обрабатываем ъ как эпсилон (пустую строку)
-    const replacementText = rule.right === "ъ" ? "" : rule.right;
+    // Обрабатываем ъ и ε как эпсилон (пустую строку)
+    const replacementText =
+      rule.right === "ъ" || rule.right === "ε" ? "" : rule.right;
     const newResult = currentResult.replace(rule.left, replacementText);
 
     setDerivationSteps((prev) => [
@@ -123,6 +146,11 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     const lastResult = newSteps[newSteps.length - 1].result;
     updateAvailableRules(lastResult);
     setIsCompleted(false);
+  };
+
+  // Переключение отображения сохраненных слов
+  const toggleSavedWords = () => {
+    setShowSavedWords(!showSavedWords);
   };
 
   return (
@@ -204,12 +232,6 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                     })}
                   </div>
                 )}
-
-                {isCompleted && (
-                  <div className="completion-message">
-                    ✅ Слово построено! Все нетерминальные символы заменены.
-                  </div>
-                )}
               </div>
 
               {/* Кнопки управления */}
@@ -234,16 +256,32 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
           </div>
 
           {/* Кнопка сохраненных слов */}
-          <div className="saved-words-section">
-            <button className="saved-words-btn">
+          <div className="saved-words-section" ref={savedWordsRef}>
+            <button className="saved-words-btn" onClick={toggleSavedWords}>
               📝 Сохраненные слова ({savedWords.length})
-              {savedWords.length > 0 && (
-                <div className="saved-words-preview">
-                  {savedWords.slice(-3).join(", ")}
-                  {savedWords.length > 3 && "..."}
-                </div>
-              )}
             </button>
+
+            {/* Выпадающий список сохраненных слов */}
+            {showSavedWords && (
+              <div className="saved-words-dropdown">
+                <div className="saved-words-list">
+                  {savedWords.length > 0 ? (
+                    savedWords.map((word, index) => (
+                      <div key={index} className="saved-word-item">
+                        <span className="word-number">{index + 1}.</span>
+                        <span className="word-text">
+                          {displayEpsilon(word)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="saved-word-item empty-state">
+                      <span className="word-text">Нет сохраненных слов</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

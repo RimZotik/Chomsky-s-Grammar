@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserData, AppPage, Grammar } from "./types";
 import AuthPage from "./pages/AuthPage";
 import MenuPage from "./pages/MenuPage";
@@ -10,6 +10,11 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserData | null>(null);
   const [grammar, setGrammar] = useState<Grammar | undefined>(undefined);
 
+  // Очищаем sessionStorage при запуске приложения
+  useEffect(() => {
+    sessionStorage.clear();
+  }, []);
+
   const handleLogin = (userData: UserData) => {
     setCurrentUser(userData);
     setCurrentPage("menu");
@@ -18,6 +23,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     setGrammar(undefined);
+    sessionStorage.clear();
     setCurrentPage("auth");
   };
 
