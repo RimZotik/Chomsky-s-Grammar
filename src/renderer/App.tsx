@@ -10,9 +10,9 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserData | null>(null);
   const [grammar, setGrammar] = useState<Grammar | undefined>(undefined);
 
-  // Очищаем sessionStorage при запуске приложения
+  // Очищаем только состояние генерации слов при запуске приложения
   useEffect(() => {
-    sessionStorage.clear();
+    sessionStorage.removeItem("wordGenerationState");
   }, []);
 
   const handleLogin = (userData: UserData) => {
@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     setGrammar(undefined);
-    sessionStorage.clear();
+    sessionStorage.clear(); // Полная очистка при выходе
     setCurrentPage("auth");
   };
 

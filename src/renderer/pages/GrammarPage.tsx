@@ -110,9 +110,9 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     }
   }, [errors.ruleLeft, errors.ruleRight, errors.ruleGeneral]);
 
-  // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон)
+  // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон + пробел)
   const validateTerminals = (char: string): boolean => {
-    return /^[а-я]$/.test(char);
+    return /^[а-я]$/.test(char) || char === " ";
   };
 
   // Валидация нетерминальных символов (английские заглавные буквы)
@@ -120,9 +120,14 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     return /^[A-Z]$/.test(char);
   };
 
-  // Функция для отображения ъ как ε (эпсилон)
+  // Функция для отображения ъ как ε (эпсилон) и пробела как _
   const displayEpsilon = (text: string): string => {
-    return text.replace(/ъ/g, "ε");
+    return text.replace(/ъ/g, "ε").replace(/ /g, "_");
+  };
+
+  // Функция для преобразования _ обратно в пробел для генерации слов
+  const convertUnderscoreToSpace = (text: string): string => {
+    return text.replace(/_/g, " ");
   };
 
   // Проверка уникальности символов
@@ -313,11 +318,30 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           return;
         }
 
+        // Специальная обработка для пробела - сохраняем как _
+        let symbolToAdd = key;
+        let displaySymbol = key;
+        if (key === " ") {
+          symbolToAdd = "_";
+          displaySymbol = "_";
+          // Проверяем дублирование пробела
+          if (symbols.includes("_")) {
+            setErrors((prev) => ({
+              ...prev,
+              terminals: `Символ пробела (_) уже существует в множестве терминальных символов`,
+            }));
+            setTimeout(() => {
+              setErrors((prev) => ({ ...prev, terminals: "" }));
+            }, 3000);
+            return;
+          }
+        }
+
         // Проверяем дублирование
-        if (symbols.includes(key)) {
+        if (symbols.includes(symbolToAdd)) {
           setErrors((prev) => ({
             ...prev,
-            terminals: `Символ "${key}" уже существует в множестве терминальных символов`,
+            terminals: `Символ "${displaySymbol}" уже существует в множестве терминальных символов`,
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -338,7 +362,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           currentPos = symbolEnd;
         }
 
-        symbols.splice(insertIndex, 0, key);
+        symbols.splice(insertIndex, 0, symbolToAdd);
         const newValue = formatSymbolString(symbols);
         setGrammarForm((prev) => ({ ...prev, terminals: newValue }));
         setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -357,7 +381,8 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          terminals: "Можно вводить только русские строчные символы (а-я)",
+          terminals:
+            "Можно вводить только русские строчные символы (а-я) и пробел (_)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -600,7 +625,9 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   };
 
   const getTerminalsList = (): string[] => {
-    const userTerminals = parseSymbolString(grammarForm.terminals);
+    const userTerminals = parseSymbolString(grammarForm.terminals).map(
+      (symbol) => (symbol === "_" ? " " : symbol)
+    );
     // Логически эпсилон всегда есть в VT, но не отображается в поле
     return [...userTerminals, EPSILON];
   };
@@ -609,75 +636,119 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     return parseSymbolString(grammarForm.nonTerminals);
   };
 
-  const validateRuleLeft = (value: string): boolean => {
+  const validateRuleLeft = (
+    value: string
+  ): { isValid: boolean; errorMessage?: string } => {
+    if (value.length === 0) {
+      return { isValid: true }; // Пустое значение допустимо во время ввода
+    }
+
+    if (value.length > 1) {
+      return {
+        isValid: false,
+        errorMessage: "Можно вводить только один символ из VN",
+      };
+    }
+
     const nonTerminals = getNonTerminalsList();
-    return value.length === 1 && nonTerminals.includes(value);
+    if (nonTerminals.length === 0) {
+      return {
+        isValid: false,
+        errorMessage: "Сначала определите нетерминальные символы (VN)",
+      };
+    }
+
+    if (!nonTerminals.includes(value)) {
+      return {
+        isValid: false,
+        errorMessage: `Символ "${value}" отсутствует в VN. Доступные: ${nonTerminals.join(
+          ", "
+        )}`,
+      };
+    }
+
+    return { isValid: true };
   };
 
-  const validateRuleRight = (value: string): boolean => {
-    const terminals = getTerminalsList();
+  const validateRuleRight = (
+    value: string
+  ): { isValid: boolean; errorMessage?: string } => {
+    if (value.length === 0) {
+      return { isValid: true }; // Пустое значение допустимо во время ввода
+    }
+
+    const terminals = getTerminalsList(); // уже преобразует _ в пробел
     const nonTerminals = getNonTerminalsList();
-    const allSymbols = [...terminals, ...nonTerminals, EPSILON];
+    const allSymbols = [...terminals, ...nonTerminals];
+
+    if (terminals.length <= 1 && nonTerminals.length === 0) {
+      // terminals всегда содержит EPSILON
+      return {
+        isValid: false,
+        errorMessage:
+          "Сначала определите терминальные (VT) и нетерминальные (VN) символы",
+      };
+    }
 
     // Проверяем каждый символ в правой части
     for (let char of value) {
-      if (char !== " " && !allSymbols.includes(char)) {
-        return false;
+      if (!allSymbols.includes(char)) {
+        return {
+          isValid: false,
+          errorMessage: `Символ "${char}" отсутствует в VT или VN`,
+        };
       }
     }
-    return true;
+    return { isValid: true };
   };
 
   const handleRuleInputChange = (field: "left" | "right", value: string) => {
+    // Преобразуем _ обратно в пробел для внутренней обработки
+    const actualValue = value.replace(/_/g, " ");
     const newErrors = { ...errors };
-    let isValid = true;
 
     if (field === "left") {
-      if (value.length > 1) {
-        newErrors.ruleLeft = "Можно вводить только один символ из VN";
-        setErrors(newErrors);
-        return;
-      }
+      const validation = validateRuleLeft(actualValue);
 
-      isValid = validateRuleLeft(value);
-      if (!isValid && value.length > 0) {
-        newErrors.ruleLeft = "Можно вводить только символы из VN";
-        setErrors(newErrors);
-        return;
+      if (!validation.isValid && validation.errorMessage) {
+        newErrors.ruleLeft = validation.errorMessage;
       } else {
         delete newErrors.ruleLeft;
       }
+
+      if (validation.isValid || actualValue.length === 0) {
+        setNewRule((prev) => ({
+          ...prev,
+          [field]: actualValue,
+        }));
+      }
     } else {
-      // Для правой части просто заменяем ъ на эпсилон без дополнительных проверок
-      let processedValue = value.replace(/ъ/g, EPSILON);
+      // Для правой части заменяем ъ на эпсилон
+      let processedValue = actualValue.replace(/ъ/g, EPSILON);
 
       // Проверяем только на множественные эпсилоны в результате
       const epsilonCount = (processedValue.match(/ε/g) || []).length;
       if (epsilonCount > 1) {
         newErrors.ruleRight = "Можно вводить только один пустой символ (ъ)";
-        setErrors(newErrors);
-        return;
-      }
-
-      // Проверяем валидность остальных символов
-      isValid = validateRuleRight(processedValue);
-      if (!isValid) {
-        newErrors.ruleRight = "Можно вводить только символы из VT и VN";
-        setErrors(newErrors);
-        return;
       } else {
-        delete newErrors.ruleRight;
-        value = processedValue; // Используем обработанное значение
+        // Проверяем валидность остальных символов
+        const validation = validateRuleRight(processedValue);
+        if (!validation.isValid && validation.errorMessage) {
+          newErrors.ruleRight = validation.errorMessage;
+        } else {
+          delete newErrors.ruleRight;
+        }
+
+        if (validation.isValid || processedValue.length === 0) {
+          setNewRule((prev) => ({
+            ...prev,
+            [field]: processedValue,
+          }));
+        }
       }
     }
 
-    if (isValid) {
-      setNewRule((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-      setErrors(newErrors);
-    }
+    setErrors(newErrors);
   };
 
   const addRule = () => {
@@ -807,7 +878,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   value={grammarForm.terminals}
                   onKeyDown={handleTerminalsInput}
                   onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
-                  placeholder="а, б, в ..."
+                  placeholder="а, б, в, _ (пробел) ..."
                 />
                 {errors.terminals && (
                   <FieldNotification
@@ -921,7 +992,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         className={`rule-input left ${
                           errors.ruleLeft ? "error" : ""
                         }`}
-                        value={newRule.left}
+                        value={displayEpsilon(newRule.left)}
                         onChange={(e) =>
                           handleRuleInputChange("left", e.target.value)
                         }
@@ -934,7 +1005,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         className={`rule-input right ${
                           errors.ruleRight ? "error" : ""
                         }`}
-                        value={newRule.right}
+                        value={displayEpsilon(newRule.right)}
                         onChange={(e) =>
                           handleRuleInputChange("right", e.target.value)
                         }
@@ -965,6 +1036,26 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         ✗
                       </button>
                     </div>
+
+                    {/* Уведомления об ошибках для правил */}
+                    {errors.ruleLeft && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleLeft}
+                      />
+                    )}
+                    {errors.ruleRight && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleRight}
+                      />
+                    )}
+                    {errors.ruleGeneral && (
+                      <FieldNotification
+                        type="error"
+                        message={errors.ruleGeneral}
+                      />
+                    )}
                   </div>
                 )}
               </div>

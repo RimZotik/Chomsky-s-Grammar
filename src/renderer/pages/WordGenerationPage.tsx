@@ -29,18 +29,94 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
 
   const derivationScrollRef = useRef<HTMLDivElement>(null);
 
-  // Функция для отображения ъ как ε (эпсилон)
+  // Функции для сохранения и загрузки состояния генерации
+  const saveGenerationState = (
+    steps: DerivationStep[],
+    words: string[],
+    completed: boolean
+  ) => {
+    try {
+      const state = {
+        derivationSteps: steps,
+        savedWords: words,
+        isCompleted: completed,
+        grammarId: grammar ? JSON.stringify(grammar.rules) : null, // ID для связи с грамматикой
+      };
+      sessionStorage.setItem("wordGenerationState", JSON.stringify(state));
+    } catch (error) {
+      console.log("Ошибка сохранения состояния генерации:", error);
+    }
+  };
+
+  const loadGenerationState = () => {
+    try {
+      const savedState = sessionStorage.getItem("wordGenerationState");
+      if (savedState && grammar) {
+        const state = JSON.parse(savedState);
+        const currentGrammarId = JSON.stringify(grammar.rules);
+
+        // Проверяем, что состояние соответствует текущей грамматике
+        if (state.grammarId === currentGrammarId) {
+          return {
+            derivationSteps: state.derivationSteps || [
+              { result: grammar.startSymbol || "S" },
+            ],
+            savedWords: state.savedWords || [],
+            isCompleted: state.isCompleted || false,
+          };
+        }
+      }
+    } catch (error) {
+      console.log("Ошибка загрузки состояния генерации:", error);
+    }
+    return null;
+  };
+
+  const clearGenerationState = () => {
+    sessionStorage.removeItem("wordGenerationState");
+  };
+
+  // Функция для отображения ъ как ε (эпсилон) и пробелов как _ в правилах
   const displayEpsilon = (text: string): string => {
-    return text.replace(/ъ/g, "ε");
+    return text.replace(/ъ/g, "ε").replace(/ /g, "_");
+  };
+
+  // Функция для отображения финальных слов (пробелы остаются как есть)
+  const displayFinalWord = (text: string): string => {
+    return text.replace(/ъ/g, "ε").replace(/ /g, "\u00A0"); // Заменяем обычные пробелы на неразрывные
   };
 
   // Инициализация начального состояния при загрузке грамматики
   useEffect(() => {
     if (grammar) {
-      setDerivationSteps([{ result: grammar.startSymbol || "S" }]);
-      updateAvailableRules(grammar.startSymbol || "S");
+      // Пытаемся загрузить сохраненное состояние
+      const savedState = loadGenerationState();
+
+      if (savedState) {
+        setDerivationSteps(savedState.derivationSteps);
+        setSavedWords(savedState.savedWords);
+        setIsCompleted(savedState.isCompleted);
+        updateAvailableRules(
+          savedState.derivationSteps[savedState.derivationSteps.length - 1]
+            .result
+        );
+      } else {
+        // Если нет сохраненного состояния, начинаем с начального символа
+        const startSymbol = grammar.startSymbol || "S";
+        setDerivationSteps([{ result: startSymbol }]);
+        setSavedWords([]);
+        setIsCompleted(false);
+        updateAvailableRules(startSymbol);
+      }
     }
   }, [grammar]);
+
+  // Автосохранение состояния при изменениях
+  useEffect(() => {
+    if (grammar && derivationSteps.length > 0) {
+      saveGenerationState(derivationSteps, savedWords, isCompleted);
+    }
+  }, [derivationSteps, savedWords, isCompleted, grammar]);
 
   // Обновление доступных правил на основе текущего результата
   const updateAvailableRules = (currentResult: string) => {
@@ -134,6 +210,8 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     setDerivationSteps([{ result: startSymbol }]);
     updateAvailableRules(startSymbol);
     setIsCompleted(false);
+    // Очищаем сохраненное состояние при сбросе
+    clearGenerationState();
   };
 
   // Отмена последнего шага
@@ -175,7 +253,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                 {derivationSteps.map((step, index) => (
                   <React.Fragment key={index}>
                     {/* Результат шага */}
-                    <div className="derivation-step-result">{step.result}</div>
+                    <div className="derivation-step-result">
+                      {displayFinalWord(step.result)}
+                    </div>
 
                     {/* Стрелка и номер правила (если не последний элемент) */}
                     {index < derivationSteps.length - 1 && (
@@ -270,7 +350,7 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                       <div key={index} className="saved-word-item">
                         <span className="word-number">{index + 1}.</span>
                         <span className="word-text">
-                          {displayEpsilon(word)}
+                          {displayFinalWord(word)}
                         </span>
                       </div>
                     ))
