@@ -390,10 +390,7 @@
   font-size: 1rem;
   color: #1a202c;
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 0; /* Позволяет flex элементу сжиматься */
+  white-space: pre; /* Сохраняет все пробелы и пробельные символы как есть */
 }
 
 .saved-word-item.empty-state {

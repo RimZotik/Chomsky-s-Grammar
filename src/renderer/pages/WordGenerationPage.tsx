@@ -82,8 +82,26 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   };
 
   // Функция для отображения финальных слов (пробелы остаются как есть)
-  const displayFinalWord = (text: string): string => {
-    return text.replace(/ъ/g, "ε").replace(/ /g, "\u00A0"); // Заменяем обычные пробелы на неразрывные
+  const displayFinalWord = (
+    text: string,
+    completed: boolean = false
+  ): string => {
+    const processedText = text.replace(/ъ/g, "ε").replace(/ /g, "\u00A0"); // Заменяем обычные пробелы на неразрывные
+    return completed ? processedText + "." : processedText; // Добавляем точку для завершенных слов
+  };
+
+  // Функция для отображения слов в списке сохраненных (пробелы остаются пробелами)
+  const displaySavedWord = (text: string): string => {
+    console.log(
+      "Отображение слова:",
+      JSON.stringify(text),
+      "длина:",
+      text.length,
+      "коды символов:",
+      Array.from(text).map((c) => c.charCodeAt(0))
+    );
+    // В списке сохраненных слов точка уже должна быть частью слова
+    return text.replace(/ъ/g, "ε"); // Заменяем только ъ на ε, пробелы оставляем как есть
   };
 
   // Инициализация начального состояния при загрузке грамматики
@@ -148,8 +166,20 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   useEffect(() => {
     if (isCompleted && derivationSteps.length > 1) {
       const lastResult = derivationSteps[derivationSteps.length - 1].result;
-      if (!savedWords.includes(lastResult)) {
-        setSavedWords((prev) => [...prev, lastResult]);
+      const completedWord = lastResult + "."; // Добавляем точку к завершенному слову
+      console.log(
+        "Попытка сохранить слово:",
+        JSON.stringify(lastResult),
+        "с точкой:",
+        JSON.stringify(completedWord),
+        "длина:",
+        completedWord.length
+      );
+      if (!savedWords.includes(completedWord)) {
+        console.log("Сохраняем слово:", JSON.stringify(completedWord));
+        setSavedWords((prev) => [...prev, completedWord]);
+      } else {
+        console.log("Слово уже сохранено:", JSON.stringify(completedWord));
       }
     }
   }, [isCompleted, derivationSteps]);
@@ -254,7 +284,10 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                   <React.Fragment key={index}>
                     {/* Результат шага */}
                     <div className="derivation-step-result">
-                      {displayFinalWord(step.result)}
+                      {displayFinalWord(
+                        step.result,
+                        isCompleted && index === derivationSteps.length - 1
+                      )}
                     </div>
 
                     {/* Стрелка и номер правила (если не последний элемент) */}
@@ -271,6 +304,12 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                 ))}
               </div>
             </div>
+            {/* Сообщение о завершении деривации */}
+            {isCompleted && (
+              <div className="completion-message">
+                ✅ Деривация завершена! Слово принадлежит языку грамматики.
+              </div>
+            )}
           </div>
 
           {/* Секция с правилами */}
@@ -350,7 +389,7 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                       <div key={index} className="saved-word-item">
                         <span className="word-number">{index + 1}.</span>
                         <span className="word-text">
-                          {displayFinalWord(word)}
+                          {displaySavedWord(word)}
                         </span>
                       </div>
                     ))
