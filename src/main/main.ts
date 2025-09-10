@@ -135,7 +135,7 @@ function createMenu() {
 function createWindow(): void {
   // Создание окна браузера
   mainWindow = new BrowserWindow({
-    height: 1000,
+    height: 800,
     width: 600,
     resizable: false, // Запрет изменения размера
     maximizable: false, // Запрет разворачивания на весь экран
