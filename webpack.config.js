@@ -6,10 +6,10 @@ const target = process.env.WEBPACK_TARGET;
 
 const mainConfig = {
   name: "main",
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/main/main.ts",
   target: "electron-main",
-  devtool: "source-map",
+  devtool: process.env.NODE_ENV === "production" ? false : "source-map",
   module: {
     rules: [
       {
@@ -39,10 +39,10 @@ const mainConfig = {
 
 const preloadConfig = {
   name: "preload",
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/main/preload.ts",
   target: "electron-preload",
-  devtool: "source-map",
+  devtool: process.env.NODE_ENV === "production" ? false : "source-map",
   module: {
     rules: [
       {
@@ -72,10 +72,10 @@ const preloadConfig = {
 
 const rendererConfig = {
   name: "renderer",
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/renderer/index.tsx",
   target: "electron-renderer",
-  devtool: "source-map",
+  devtool: process.env.NODE_ENV === "production" ? false : "source-map",
   module: {
     rules: [
       {

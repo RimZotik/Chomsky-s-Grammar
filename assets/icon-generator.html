@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Icon Generator</title>
+  </head>
+  <body>
+    <canvas id="canvas" width="256" height="256"></canvas>
+    <br />
+    <button onclick="downloadPNG()">Download PNG</button>
+    <button onclick="downloadICO()">Download ICO</button>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Создаем простую иконку с буквой G
+      ctx.fillStyle = "#4a5568";
+      ctx.fillRect(0, 0, 256, 256);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 120px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("G", 128, 128);
+
+      // Добавляем рамку
+      ctx.strokeStyle = "#2d3748";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, 248, 248);
+
+      function downloadPNG() {
+        const link = document.createElement("a");
+        link.download = "icon.png";
+        link.href = canvas.toDataURL();
+        link.click();
+      }
+
+      function downloadICO() {
+        // Для ICO нужно использовать специальную библиотеку или конвертер
+        alert(
+          "Для создания .ico файла используйте онлайн конвертер PNG to ICO"
+        );
+      }
+    </script>
+  </body>
+</html>
