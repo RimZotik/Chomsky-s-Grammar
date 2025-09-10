@@ -760,8 +760,16 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   };
 
   const isFormValid = () => {
-    // Проверяем, что есть непустые ошибки
-    const hasErrors = Object.values(errors).some(
+    // Проверяем, что есть непустые ошибки, исключая ошибки правил если форма добавления правила закрыта
+    const relevantErrors = showAddRule
+      ? errors // Если форма добавления правила открыта, учитываем все ошибки
+      : Object.fromEntries(
+          Object.entries(errors).filter(
+            ([key]) => !key.startsWith("rule") // Исключаем ошибки правил если форма закрыта
+          )
+        );
+
+    const hasErrors = Object.values(relevantErrors).some(
       (error) => error && error.trim().length > 0
     );
 
@@ -882,30 +890,32 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   </button>
                 ) : (
                   <div className="add-rule-container">
-                    {/* Уведомления об ошибках правил */}
-                    {errors.ruleLeft && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleLeft}
-                        show={true}
-                      />
-                    )}
-                    {errors.ruleRight && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleRight}
-                        show={true}
-                      />
-                    )}
-                    {errors.ruleGeneral && (
-                      <FieldNotification
-                        type="error"
-                        message={errors.ruleGeneral}
-                        show={true}
-                      />
-                    )}
-
                     <div className="add-rule-form">
+                      {/* Уведомления об ошибках правил */}
+                      <div className="rule-notifications">
+                        {errors.ruleLeft && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleLeft}
+                            show={true}
+                          />
+                        )}
+                        {errors.ruleRight && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleRight}
+                            show={true}
+                          />
+                        )}
+                        {errors.ruleGeneral && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleGeneral}
+                            show={true}
+                          />
+                        )}
+                      </div>
+
                       <input
                         type="text"
                         className={`rule-input left ${
@@ -942,10 +952,14 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         onClick={() => {
                           setShowAddRule(false);
                           setNewRule({ left: "", right: "" });
-                          const newErrors = { ...errors };
-                          delete newErrors.ruleLeft;
-                          delete newErrors.ruleRight;
-                          setErrors(newErrors);
+                          // Очищаем все ошибки правил при отмене
+                          setErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.ruleLeft;
+                            delete newErrors.ruleRight;
+                            delete newErrors.ruleGeneral;
+                            return newErrors;
+                          });
                         }}
                       >
                         ✗
