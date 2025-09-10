@@ -1,13 +1,21 @@
 import React from "react";
-import { UserData, AppPage } from "../types";
+import { UserData, AppPage, Grammar } from "../types";
 
 interface MenuPageProps {
   user: UserData;
+  grammar?: Grammar;
   onNavigate: (page: AppPage) => void;
   onLogout: () => void;
 }
 
-const MenuPage: React.FC<MenuPageProps> = ({ user, onNavigate, onLogout }) => {
+const MenuPage: React.FC<MenuPageProps> = ({
+  user,
+  grammar,
+  onNavigate,
+  onLogout,
+}) => {
+  const isGrammarDefined = grammar && grammar.rules.length > 0;
+
   return (
     <div className="menu-page">
       <div className="menu-container">
@@ -37,13 +45,22 @@ const MenuPage: React.FC<MenuPageProps> = ({ user, onNavigate, onLogout }) => {
             </button>
 
             <button
-              className="menu-button menu-button--secondary"
-              onClick={() => onNavigate("word-generation")}
+              className={`menu-button ${
+                isGrammarDefined
+                  ? "menu-button--secondary"
+                  : "menu-button--disabled"
+              }`}
+              onClick={() => isGrammarDefined && onNavigate("word-generation")}
+              disabled={!isGrammarDefined}
             >
               <div className="menu-button-icon">🔤</div>
               <div className="menu-button-content">
                 <h3>Построение слов</h3>
-                <p>Генерация слов по правилам грамматики</p>
+                <p>
+                  {isGrammarDefined
+                    ? "Генерация слов по правилам грамматики"
+                    : "Необходимо сначала определить грамматику"}
+                </p>
               </div>
             </button>
           </div>

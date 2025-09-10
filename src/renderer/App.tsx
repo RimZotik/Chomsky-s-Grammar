@@ -43,6 +43,7 @@ const App: React.FC = () => {
         return (
           <MenuPage
             user={currentUser!}
+            grammar={grammar}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

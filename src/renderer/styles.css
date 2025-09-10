@@ -202,6 +202,29 @@ body {
   color: white;
 }
 
+.menu-button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.menu-button--disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #d1d5db !important;
+  background: #f9fafb !important;
+  color: inherit !important;
+}
+
+.menu-button--disabled .menu-button-content p {
+  color: #9ca3af;
+}
+
+.menu-button--disabled:hover .menu-button-content p {
+  color: #9ca3af !important;
+}
+
 .menu-button-icon {
   font-size: 2.5rem;
   min-width: 60px;

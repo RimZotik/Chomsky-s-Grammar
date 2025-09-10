@@ -29,7 +29,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   const nonTerminalsInputRef = useRef<HTMLInputElement>(null);
 
   const [grammarForm, setGrammarForm] = useState<GrammarForm>({
-    terminals: "",
+    terminals: "ъ",
     nonTerminals: "S",
     startSymbol: "S",
     rules: [],
@@ -43,33 +43,15 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   const [showAddRule, setShowAddRule] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Функции для сохранения и загрузки грамматики
+  // Функции для сохранения и загрузки грамматики (отключены)
   const saveGrammarToStorage = (grammar: GrammarForm) => {
-    try {
-      localStorage.setItem("savedGrammar", JSON.stringify(grammar));
-    } catch (error) {
-      console.error("Ошибка сохранения грамматики:", error);
-    }
+    // Сохранение отключено по требованию
+    console.log("Сохранение грамматики отключено");
   };
 
   const loadGrammarFromStorage = (): GrammarForm | null => {
-    try {
-      const saved = localStorage.getItem("savedGrammar");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Проверяем структуру данных
-        if (
-          parsed.terminals !== undefined &&
-          parsed.nonTerminals !== undefined &&
-          parsed.startSymbol !== undefined &&
-          Array.isArray(parsed.rules)
-        ) {
-          return parsed;
-        }
-      }
-    } catch (error) {
-      console.error("Ошибка загрузки грамматики:", error);
-    }
+    // Загрузка отключена по требованию
+    console.log("Загрузка грамматики отключена");
     return null;
   };
 
@@ -99,7 +81,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     }
   }, [grammarForm]);
 
-  // Валидация терминальных символов (русские строчные буквы)
+  // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон)
   const validateTerminals = (char: string): boolean => {
     return /^[а-я]$/.test(char);
   };
@@ -107,6 +89,11 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
   // Валидация нетерминальных символов (английские заглавные буквы)
   const validateNonTerminals = (char: string): boolean => {
     return /^[A-Z]$/.test(char);
+  };
+
+  // Функция для отображения ъ как ε (эпсилон)
+  const displayEpsilon = (text: string): string => {
+    return text.replace(/ъ/g, "ε");
   };
 
   // Проверка уникальности символов
@@ -203,7 +190,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           targetIndex = i;
           break;
         }
-        
+
         currentPos = nextPos;
       }
 
@@ -285,11 +272,23 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       if (validateTerminals(key)) {
         const symbols = parseSymbolString(value);
 
+        // Специальная обработка для символа ъ (эпсилон)
+        if (key === "ъ") {
+          setErrors((prev) => ({
+            ...prev,
+            terminals: `Символ "ъ" (эпсилон) уже существует в множестве терминальных символов`,
+          }));
+          setTimeout(() => {
+            setErrors((prev) => ({ ...prev, terminals: "" }));
+          }, 3000);
+          return;
+        }
+
         // Проверяем дублирование
         if (symbols.includes(key)) {
           setErrors((prev) => ({
             ...prev,
-            terminals: `Символ "${key}" уже есть в списке терминалов`,
+            terminals: `Символ "${key}" уже существует в множестве терминальных символов`,
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -329,7 +328,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          terminals: "Можно вводить только русские строчные буквы (а-я)",
+          terminals: "Можно вводить только символы из множества русских строчных букв (а-я)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, terminals: "" }));
@@ -370,7 +369,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           targetIndex = i;
           break;
         }
-        
+
         currentPos = nextPos;
       }
 
@@ -480,7 +479,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         if (symbols.includes(key)) {
           setErrors((prev) => ({
             ...prev,
-            nonTerminals: `Символ "${key}" уже есть в списке нетерминалов`,
+            nonTerminals: `Символ "${key}" уже существует в множестве нетерминальных символов`,
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, nonTerminals: "" }));
@@ -520,7 +519,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          nonTerminals: "Можно вводить только английские заглавные буквы (A-Z)",
+          nonTerminals: "Можно вводить только символы из множества английских заглавных букв (A-Z)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, nonTerminals: "" }));
@@ -550,7 +549,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         } else {
           setErrors((prev) => ({
             ...prev,
-            startSymbol: "Символ должен быть из списка нетерминальных символов",
+            startSymbol: "Символ должен существовать в множестве нетерминальных символов",
           }));
           setTimeout(() => {
             setErrors((prev) => ({ ...prev, startSymbol: "" }));
@@ -559,7 +558,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          startSymbol: "Можно вводить только английские заглавные буквы (A-Z)",
+          startSymbol: "Можно вводить только символы из множества английских заглавных букв (A-Z)",
         }));
         setTimeout(() => {
           setErrors((prev) => ({ ...prev, startSymbol: "" }));
@@ -602,7 +601,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     if (field === "left") {
       isValid = validateRuleLeft(value);
       if (!isValid && value.length > 0) {
-        newErrors.ruleLeft = "Введите существующий нетерминальный символ";
+        newErrors.ruleLeft = "Введите символ из множества нетерминальных символов";
         return;
       } else {
         delete newErrors.ruleLeft;
@@ -611,7 +610,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       isValid = validateRuleRight(value);
       if (!isValid) {
         newErrors.ruleRight =
-          "Используйте только введенные терминалы и нетерминалы";
+          "Используйте только символы из множеств терминальных и нетерминальных символов";
         return;
       } else {
         delete newErrors.ruleRight;
@@ -690,7 +689,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
 
   const clearGrammar = () => {
     const defaultGrammar = {
-      terminals: "",
+      terminals: "ъ",
       nonTerminals: "S",
       startSymbol: "S",
       rules: [],
@@ -699,7 +698,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     setNewRule({ left: "", right: "" });
     setShowAddRule(false);
     setErrors({});
-    localStorage.removeItem("savedGrammar");
+    // localStorage.removeItem удален - сохранение отключено
   };
 
   const saveGrammar = () => {
@@ -754,7 +753,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   value={grammarForm.terminals}
                   onKeyDown={handleTerminalsInput}
                   onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
-                  placeholder="а, б, в..."
+                  placeholder="а, б, в...."
                 />
                 {errors.terminals && (
                   <FieldNotification
@@ -811,7 +810,7 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                   <div key={index} className="rule-item">
                     <span className="rule-number">{index + 1}.</span>
                     <span className="rule-text">
-                      {rule.left} → {rule.right}
+                      {rule.left} → {displayEpsilon(rule.right)}
                     </span>
                     <button
                       className="remove-rule-btn"

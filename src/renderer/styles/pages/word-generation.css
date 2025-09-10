@@ -1,0 +1,346 @@
+/* Word Generation Page Styles */
+.grammar-work-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(
+    100vh - 160px
+  ); /* Оставляем место для header и кнопки сохраненных слов */
+  gap: 1rem;
+}
+
+/* Поле для отображения деривации */
+.derivation-display-field {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  height: 120px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.derivation-scroll-container {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.derivation-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Линия с шагами деривации */
+.derivation-steps-line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: max-content;
+  height: 100%;
+}
+
+/* Результат каждого шага */
+.derivation-step-result {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-family: "Courier New", monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a202c;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Контейнер со стрелочкой и номером правила */
+.derivation-arrow-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.derivation-rule-number {
+  color: #667eea;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.derivation-arrow {
+  font-size: 1.5rem;
+  color: #667eea;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Секция с правилами */
+.rules-section {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Важно для flex shrinking */
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.rules-list h3 {
+  margin: 0 0 1rem 0;
+  color: #1a202c;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.rules-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  margin-right: -0.5rem;
+}
+
+.rules-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rules-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.rules-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.rules-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rule-btn {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rule-btn:hover:not(.disabled) {
+  border-color: #667eea;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rule-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.derivation-rule-number {
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rule-number {
+  color: #667eea;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.rule-btn .rule-number {
+  background: #667eea;
+  color: white;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+  width: auto;
+  height: auto;
+  display: inline-flex;
+}
+
+.rule-content {
+  font-family: "Courier New", monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a202c;
+}
+
+/* Кнопки управления */
+.control-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.reset-btn,
+.undo-btn,
+.new-word-btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reset-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.reset-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.new-word-btn {
+  background: #22c55e;
+  color: white;
+}
+
+.new-word-btn:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.undo-btn {
+  background: #f59e0b;
+  color: white;
+}
+
+.undo-btn:hover:not(.disabled) {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.undo-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+/* Сообщения */
+.no-rules-message {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.completion-message {
+  text-align: center;
+  color: #059669;
+  font-weight: 600;
+  padding: 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+}
+
+/* Секция сохраненных слов */
+.saved-words-section {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+
+.saved-words-btn {
+  width: 100%;
+  background: #1e293b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.saved-words-btn:hover {
+  background: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.saved-words-preview {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.8;
+  font-family: "Courier New", monospace;
+}
+
+/* Дополнительные стили */
+.primary-button {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-button:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
