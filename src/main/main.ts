@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow } from "electron";
 import * as path from "path";
 
 let mainWindow: BrowserWindow;
@@ -6,15 +6,14 @@ let mainWindow: BrowserWindow;
 function createWindow(): void {
   // Создание окна браузера
   mainWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    height: 1000,
+    width: 600,
     resizable: false, // Запрет изменения размера
     maximizable: false, // Запрет разворачивания на весь экран
     center: true, // Центрирование окна
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -45,9 +44,4 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
-});
-
-// IPC примеры
-ipcMain.handle("get-app-version", () => {
-  return app.getVersion();
 });

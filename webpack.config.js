@@ -33,38 +33,6 @@ const mainConfig = {
   },
 };
 
-const preloadConfig = {
-  mode: "development",
-  entry: "./src/main/preload.ts",
-  target: "electron-preload",
-  devtool: "source-map",
-  module: {
-    rules: [
-      {
-        test: /\.ts$/,
-        exclude: /node_modules/,
-        use: {
-          loader: "ts-loader",
-          options: {
-            transpileOnly: true,
-          },
-        },
-      },
-    ],
-  },
-  output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "preload.js",
-  },
-  resolve: {
-    extensions: [".ts", ".js"],
-  },
-  node: {
-    __dirname: false,
-    __filename: false,
-  },
-};
-
 const rendererConfig = {
   mode: "development",
   entry: "./src/renderer/index.tsx",
@@ -103,4 +71,4 @@ const rendererConfig = {
   },
 };
 
-module.exports = [mainConfig, preloadConfig, rendererConfig];
+module.exports = [mainConfig, rendererConfig];
