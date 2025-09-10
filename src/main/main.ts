@@ -11,63 +11,70 @@ if (process.platform === "win32") {
 
 let mainWindow: BrowserWindow;
 
-// IPC обработчики
-ipcMain.handle("get-app-version", () => {
-  return app.getVersion();
-});
+function setupIpcHandlers() {
+  // Очищаем существующие обработчики перед регистрацией новых
+  ipcMain.removeAllListeners("get-app-version");
+  ipcMain.removeAllListeners("save-app-data");
+  ipcMain.removeAllListeners("load-app-data");
 
-ipcMain.handle("save-app-data", async (event, data) => {
-  try {
-    const result = (await dialog.showSaveDialog(mainWindow, {
-      title: "Сохранить данные приложения",
-      defaultPath: "grammar-data.json",
-      filters: [
-        { name: "JSON Files", extensions: ["json"] },
-        { name: "All Files", extensions: ["*"] },
-      ],
-    })) as unknown as { canceled: boolean; filePath?: string };
+  // IPC обработчики
+  ipcMain.handle("get-app-version", () => {
+    return app.getVersion();
+  });
 
-    if (result.canceled || !result.filePath) {
-      return { success: false, cancelled: true };
+  ipcMain.handle("save-app-data", async (event, data) => {
+    try {
+      const result = (await dialog.showSaveDialog(mainWindow, {
+        title: "Сохранить данные приложения",
+        defaultPath: "grammar-data.json",
+        filters: [
+          { name: "JSON Files", extensions: ["json"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+      })) as unknown as { canceled: boolean; filePath?: string };
+
+      if (result.canceled || !result.filePath) {
+        return { success: false, cancelled: true };
+      }
+
+      await fs.promises.writeFile(
+        result.filePath,
+        JSON.stringify(data, null, 2),
+        "utf8"
+      );
+      return { success: true, path: result.filePath };
+    } catch (error: any) {
+      console.error("Ошибка при сохранении файла:", error);
+      return { success: false, error: error.message };
     }
+  });
 
-    await fs.promises.writeFile(
-      result.filePath,
-      JSON.stringify(data, null, 2),
-      "utf8"
-    );
-    return { success: true, path: result.filePath };
-  } catch (error: any) {
-    console.error("Ошибка при сохранении файла:", error);
-    return { success: false, error: error.message };
-  }
-});
+  ipcMain.handle("load-app-data", async () => {
+    try {
+      const result = (await dialog.showOpenDialog(mainWindow, {
+        title: "Открыть данные приложения",
+        filters: [
+          { name: "JSON Files", extensions: ["json"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+        properties: ["openFile"],
+      })) as unknown as { canceled: boolean; filePaths: string[] };
 
-ipcMain.handle("load-app-data", async () => {
-  try {
-    const result = (await dialog.showOpenDialog(mainWindow, {
-      title: "Открыть данные приложения",
-      filters: [
-        { name: "JSON Files", extensions: ["json"] },
-        { name: "All Files", extensions: ["*"] },
-      ],
-      properties: ["openFile"],
-    })) as unknown as { canceled: boolean; filePaths: string[] };
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, cancelled: true };
+      }
 
-    if (result.canceled || result.filePaths.length === 0) {
-      return { success: false, cancelled: true };
+      const filePath = result.filePaths[0];
+      const fileContent = await fs.promises.readFile(filePath, "utf8");
+      const data = JSON.parse(fileContent);
+
+      return { success: true, data, path: filePath };
+    } catch (error: any) {
+      console.error("Ошибка при загрузке файла:", error);
+      return { success: false, error: error.message };
     }
-
-    const filePath = result.filePaths[0];
-    const fileContent = await fs.promises.readFile(filePath, "utf8");
-    const data = JSON.parse(fileContent);
-
-    return { success: true, data, path: filePath };
-  } catch (error: any) {
-    console.error("Ошибка при загрузке файла:", error);
-    return { success: false, error: error.message };
-  }
-});
+  });
+}
 
 function createMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -163,6 +170,7 @@ function createWindow(): void {
 
 // Этот метод будет вызван, когда Electron завершит инициализацию
 app.whenReady().then(() => {
+  setupIpcHandlers();
   createWindow();
 });
 

@@ -6,6 +6,9 @@
   "homepage": "./",
   "scripts": {
     "build": "webpack --mode=development",
+    "build:main": "webpack --mode=development --config-name main",
+    "build:preload": "webpack --mode=development --config-name preload",
+    "build:renderer": "webpack --mode=development --config-name renderer",
     "build:watch": "webpack --mode=development --watch",
     "dev": "concurrently \"npm run build:watch\" \"wait-on dist/main.js && electron .\" --kill-others"
   },

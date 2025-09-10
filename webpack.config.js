@@ -1,7 +1,11 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
+// Определяем какую конфигурацию использовать
+const target = process.env.WEBPACK_TARGET;
+
 const mainConfig = {
+  name: "main",
   mode: "development",
   entry: "./src/main/main.ts",
   target: "electron-main",
@@ -34,6 +38,7 @@ const mainConfig = {
 };
 
 const preloadConfig = {
+  name: "preload",
   mode: "development",
   entry: "./src/main/preload.ts",
   target: "electron-preload",
@@ -66,6 +71,7 @@ const preloadConfig = {
 };
 
 const rendererConfig = {
+  name: "renderer",
   mode: "development",
   entry: "./src/renderer/index.tsx",
   target: "electron-renderer",
@@ -91,11 +97,15 @@ const rendererConfig = {
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "renderer.js",
+    clean: false,
   },
   plugins: [
     new HtmlWebpackPlugin({
       template: "./src/renderer/index.html",
       filename: "index.html",
+      inject: "body",
+      scriptLoading: "blocking",
+      minify: false, // Отключаем минификацию для отладки
     }),
   ],
   resolve: {
@@ -103,4 +113,13 @@ const rendererConfig = {
   },
 };
 
-module.exports = [mainConfig, preloadConfig, rendererConfig];
+// Возвращаем только нужную конфигурацию или все
+if (target === "main") {
+  module.exports = mainConfig;
+} else if (target === "preload") {
+  module.exports = preloadConfig;
+} else if (target === "renderer") {
+  module.exports = rendererConfig;
+} else {
+  module.exports = [mainConfig, preloadConfig, rendererConfig];
+}

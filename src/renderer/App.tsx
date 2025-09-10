@@ -98,28 +98,23 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!window.electronAPI) return;
 
-    let unsubscribeSave: (() => void) | undefined;
-    let unsubscribeOpen: (() => void) | undefined;
-
-    // Сохранение работает только если пользователь авторизован
-    unsubscribeSave = window.electronAPI.onMenuSave(() => {
+    // ВАЖНО: создаем стабильные ссылки на функции-обработчики с помощью useCallback
+    const handleMenuSave = () => {
       if (currentUserRef.current) {
         saveAppData();
       } else {
         alert("Для сохранения необходимо авторизоваться");
       }
-    });
+    };
 
-    // Открытие работает всегда
-    unsubscribeOpen = window.electronAPI.onMenuOpen(() => {
-      loadAppData();
-    });
+    const unsubscribeSave = window.electronAPI.onMenuSave(handleMenuSave);
+    const unsubscribeOpen = window.electronAPI.onMenuOpen(loadAppData);
 
     return () => {
-      if (unsubscribeSave) unsubscribeSave();
-      if (unsubscribeOpen) unsubscribeOpen();
+      unsubscribeSave();
+      unsubscribeOpen();
     };
-  }, [saveAppData, loadAppData]);
+  }, [saveAppData, loadAppData, currentUserRef]);
 
   const handleLogin = (userData: UserData) => {
     setCurrentUser(userData);
