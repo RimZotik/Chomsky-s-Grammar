@@ -12,6 +12,8 @@ const App: React.FC = () => {
   const [loadedAppData, setLoadedAppData] = useState<AppData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const currentUserRef = useRef<UserData | null>(null);
+  const saveAppDataRef = useRef<(() => Promise<void>) | null>(null);
+  const loadAppDataRef = useRef<(() => Promise<void>) | null>(null);
 
   // Обновляем ref при изменении currentUser
   useEffect(() => {
@@ -45,6 +47,11 @@ const App: React.FC = () => {
       alert("Произошла ошибка при сохранении данных");
     }
   }, [currentUser, grammar]);
+
+  // Обновляем ref при изменении функции
+  useEffect(() => {
+    saveAppDataRef.current = saveAppData;
+  }, [saveAppData]);
 
   const loadAppData = useCallback(async () => {
     if (!window.electronAPI || isLoading) return;
@@ -89,6 +96,11 @@ const App: React.FC = () => {
     }
   }, [isLoading]);
 
+  // Обновляем ref при изменении функции
+  useEffect(() => {
+    loadAppDataRef.current = loadAppData;
+  }, [loadAppData]);
+
   // Очищаем только состояние генерации слов при запуске приложения
   useEffect(() => {
     sessionStorage.removeItem("wordGenerationState");
@@ -98,23 +110,28 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!window.electronAPI) return;
 
-    // ВАЖНО: создаем стабильные ссылки на функции-обработчики с помощью useCallback
     const handleMenuSave = () => {
-      if (currentUserRef.current) {
-        saveAppData();
+      if (currentUserRef.current && saveAppDataRef.current) {
+        saveAppDataRef.current();
       } else {
         alert("Для сохранения необходимо авторизоваться");
       }
     };
 
+    const handleMenuOpen = () => {
+      if (loadAppDataRef.current) {
+        loadAppDataRef.current();
+      }
+    };
+
     const unsubscribeSave = window.electronAPI.onMenuSave(handleMenuSave);
-    const unsubscribeOpen = window.electronAPI.onMenuOpen(loadAppData);
+    const unsubscribeOpen = window.electronAPI.onMenuOpen(handleMenuOpen);
 
     return () => {
       unsubscribeSave();
       unsubscribeOpen();
     };
-  }, [saveAppData, loadAppData, currentUserRef]);
+  }, []); // Убираем все зависимости - подписка должна быть только один раз
 
   const handleLogin = (userData: UserData) => {
     setCurrentUser(userData);
