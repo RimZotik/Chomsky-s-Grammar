@@ -1,0 +1,1262 @@
+import React, { useState, useRef, useEffect } from "react";
+import { UserData, AppPage, Grammar, ProductionRule } from "../types";
+import FieldNotification from "../components/grammar/FieldNotification";
+
+interface GrammarPageProps {
+  user: UserData;
+  onNavigate: (page: AppPage) => void;
+  onSaveGrammar: (grammar: Grammar) => void;
+  initialGrammar?: Grammar;
+}
+
+interface GrammarForm {
+  terminals: string;
+  nonTerminals: string;
+  startSymbol: string;
+  rules: ProductionRule[];
+}
+
+interface NewRule {
+  left: string;
+  right: string;
+}
+
+const GrammarPage: React.FC<GrammarPageProps> = ({
+  user,
+  onNavigate,
+  onSaveGrammar,
+  initialGrammar,
+}) => {
+  const terminalsInputRef = useRef<HTMLInputElement>(null);
+  const nonTerminalsInputRef = useRef<HTMLInputElement>(null);
+
+  const [grammarForm, setGrammarForm] = useState<GrammarForm>({
+    terminals: "",
+    nonTerminals: "S",
+    startSymbol: "S",
+    rules: [],
+  });
+
+  const [newRule, setNewRule] = useState<NewRule>({
+    left: "",
+    right: "",
+  });
+
+  const [showAddRule, setShowAddRule] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Константа для символа эпсилон
+  const EPSILON = "ε";
+
+  // Функции для сохранения и загрузки грамматики (используем sessionStorage)
+  const saveGrammarToStorage = (grammar: GrammarForm) => {
+    try {
+      sessionStorage.setItem("currentGrammar", JSON.stringify(grammar));
+    } catch (error) {
+      console.log("Ошибка сохранения грамматики:", error);
+    }
+  };
+
+  const loadGrammarFromStorage = (): GrammarForm | null => {
+    try {
+      const savedGrammar = sessionStorage.getItem("currentGrammar");
+      if (savedGrammar) {
+        return JSON.parse(savedGrammar);
+      }
+    } catch (error) {
+      console.log("Ошибка загрузки грамматики:", error);
+    }
+    return null;
+  };
+
+  // Загружаем сохраненную грамматику при монтировании компонента
+  useEffect(() => {
+    // Сначала проверяем initialGrammar (загруженную из файла)
+    if (initialGrammar) {
+      // Преобразуем пробелы в символы подчеркивания для отображения
+      const processedTerminals = initialGrammar.terminals.map((terminal) =>
+        terminal === " " ? "_" : terminal
+      );
+
+      const grammarForm: GrammarForm = {
+        terminals: processedTerminals.join(", "),
+        nonTerminals: initialGrammar.nonTerminals.join(", "),
+        startSymbol: initialGrammar.startSymbol,
+        rules: initialGrammar.rules,
+      };
+
+      // Убеждаемся, что S всегда присутствует в нетерминалах
+      if (!grammarForm.nonTerminals.includes("S")) {
+        grammarForm.nonTerminals = grammarForm.nonTerminals
+          ? `S, ${grammarForm.nonTerminals}`
+          : "S";
+      }
+      grammarForm.startSymbol = "S"; // Фиксируем начальный символ как S
+      
+      // Сначала фильтруем и сортируем правила при загрузке
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      
+      // Удаляем правила которые содержат несуществующие нетерминальные символы
+      const filteredRules = grammarForm.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Сортируем оставшиеся правила
+      grammarForm.rules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        return 0;
+      });
+      
+      setGrammarForm(grammarForm);
+      return;
+    }
+
+    // Если нет initialGrammar, загружаем из sessionStorage
+    const savedGrammar = loadGrammarFromStorage();
+    if (savedGrammar) {
+      // Убеждаемся, что S всегда присутствует в нетерминалах
+      if (!savedGrammar.nonTerminals.includes("S")) {
+        savedGrammar.nonTerminals = savedGrammar.nonTerminals
+          ? `S, ${savedGrammar.nonTerminals}`
+          : "S";
+      }
+      savedGrammar.startSymbol = "S"; // Фиксируем начальный символ как S
+      
+      // Сначала фильтруем и сортируем правила при загрузке
+      const nonTerminals = parseSymbolString(savedGrammar.nonTerminals);
+      
+      // Удаляем правила которые содержат несуществующие нетерминальные символы
+      const filteredRules = savedGrammar.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Сортируем оставшиеся правила
+      savedGrammar.rules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        return 0;
+      });
+      
+      setGrammarForm(savedGrammar);
+    }
+  }, [initialGrammar]);
+
+  // Автосохранение при изменении грамматики
+  useEffect(() => {
+    if (
+      grammarForm.terminals ||
+      grammarForm.nonTerminals !== "S" ||
+      grammarForm.rules.length > 0
+    ) {
+      saveGrammarToStorage(grammarForm);
+    }
+  }, [grammarForm]);
+
+  // Пересортировка правил при изменении порядка нетерминальных символов
+  useEffect(() => {
+    if (grammarForm.rules.length > 0) {
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      
+      // Фильтруем правила - удаляем те, которые содержат несуществующие нетерминальные символы
+      const filteredRules = grammarForm.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Затем сортируем оставшиеся правила
+      const sortedRules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        // Если оба символа найдены в VN, сортируем по их позиции
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        // Если один символ не найден, он идет в конец
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        // Если оба не найдены, сохраняем исходный порядок
+        return 0;
+      });
+      
+      // Проверяем, изменились ли правила (удаление или изменение порядка)
+      const rulesChanged = grammarForm.rules.length !== sortedRules.length ||
+        grammarForm.rules.some((rule, index) => 
+          rule.left !== sortedRules[index]?.left || rule.right !== sortedRules[index]?.right
+        );
+      
+      if (rulesChanged) {
+        setGrammarForm((prev) => ({
+          ...prev,
+          rules: sortedRules,
+        }));
+      }
+    }
+  }, [grammarForm.nonTerminals]); // Запускается при изменении VN
+
+  // Автоматическое скрытие уведомлений об ошибках правил
+  useEffect(() => {
+    if (errors.ruleLeft || errors.ruleRight || errors.ruleGeneral) {
+      const timer = setTimeout(() => {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.ruleLeft;
+          delete newErrors.ruleRight;
+          delete newErrors.ruleGeneral;
+          return newErrors;
+        });
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [errors.ruleLeft, errors.ruleRight, errors.ruleGeneral]);
+
+  // Валидация терминальных символов (русские строчные буквы + ъ для эпсилон + пробел)
+  const validateTerminals = (char: string): boolean => {
+    return /^[а-я]$/.test(char) || char === " " || char === "ъ";
+  };
+
+  // Валидация нетерминальных символов (английские заглавные буквы)
+  const validateNonTerminals = (char: string): boolean => {
+    return /^[A-Z]$/.test(char);
+  };
+
+  // Функция для отображения ъ как ε (эпсилон) и пробела как _
+  const displayEpsilon = (text: string): string => {
+    return text.replace(/ъ/g, "ε").replace(/ /g, "_");
+  };
+
+  // Функция для отображения терминалов (только ъ → ε, пробелы остаются)
+  const displayTerminals = (text: string): string => {
+    return text.replace(/ъ/g, "ε");
+  };
+
+  // Функция для преобразования _ обратно в пробел для генерации слов
+  const convertUnderscoreToSpace = (text: string): string => {
+    return text.replace(/_/g, " ");
+  };
+
+  // Проверка уникальности символов
+  const checkSymbolUniqueness = (
+    symbols: string[]
+  ): { isUnique: boolean; duplicates: string[] } => {
+    const seen = new Set<string>();
+    const duplicates: string[] = [];
+
+    for (const symbol of symbols) {
+      if (seen.has(symbol)) {
+        if (!duplicates.includes(symbol)) {
+          duplicates.push(symbol);
+        }
+      } else {
+        seen.add(symbol);
+      }
+    }
+
+    return { isUnique: duplicates.length === 0, duplicates };
+  };
+
+  // Проверка уникальности правил
+  const checkRuleUniqueness = (
+    rules: ProductionRule[],
+    newRule: ProductionRule
+  ): boolean => {
+    return !rules.some(
+      (rule) => rule.left === newRule.left && rule.right === newRule.right
+    );
+  };
+
+  // Форматирование строки символов с запятыми
+  const formatSymbolString = (symbols: string[]): string => {
+    return symbols.join(", ");
+  };
+
+  // Получение массива символов из строки
+  const parseSymbolString = (str: string): string[] => {
+    return str.split(", ").filter((s) => s.length > 0);
+  };
+
+  // Функция для прокрутки поля к позиции курсора
+  const scrollToCursor = (
+    inputRef: React.RefObject<HTMLInputElement>,
+    cursorPos: number
+  ) => {
+    if (!inputRef.current) return;
+
+    const input = inputRef.current;
+    // Создаем временный span для измерения ширины текста до курсора
+    const span = document.createElement("span");
+    span.style.font = window.getComputedStyle(input).font;
+    span.style.visibility = "hidden";
+    span.style.position = "absolute";
+    span.textContent = input.value.substring(0, cursorPos);
+    document.body.appendChild(span);
+
+    const textWidth = span.offsetWidth;
+    document.body.removeChild(span);
+
+    const inputWidth = input.clientWidth;
+    const scrollLeft = Math.max(0, textWidth - inputWidth / 2);
+    input.scrollLeft = scrollLeft;
+  };
+
+  // Обработка ввода терминальных символов
+  const handleTerminalsInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const value = input.value;
+    const key = e.key;
+    const cursorPos = input.selectionStart || 0;
+
+    if (key === "Backspace") {
+      e.preventDefault();
+
+      if (cursorPos === 0) return; // Нечего удалять слева
+
+      const symbols = parseSymbolString(value);
+      if (symbols.length === 0) return;
+
+      // Исправленная логика: находим символ строго слева от курсора
+      let targetIndex = -1;
+      let currentPos = 0;
+
+      // Проходим по всем символам и находим тот, который заканчивается перед курсором
+      for (let i = 0; i < symbols.length; i++) {
+        const symbolStart = currentPos;
+        const symbolEnd = currentPos + symbols[i].length;
+        const nextPos = symbolEnd + (i < symbols.length - 1 ? 2 : 0); // +2 для ", " если есть следующий символ
+
+        // Если курсор находится в пределах символа или сразу после него (включая запятую и пробел)
+        if (cursorPos > symbolStart && cursorPos <= nextPos) {
+          targetIndex = i;
+          break;
+        }
+
+        currentPos = nextPos;
+      }
+
+      // Если не нашли символ в цикле, значит курсор в самом конце - удаляем последний символ
+      if (targetIndex === -1 && symbols.length > 0) {
+        targetIndex = symbols.length - 1;
+      }
+
+      if (targetIndex >= 0) {
+        symbols.splice(targetIndex, 1);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, terminals: newValue }));
+
+        // Устанавливаем курсор в позицию удаленного символа
+        setTimeout(() => {
+          if (terminalsInputRef.current) {
+            const newPos =
+              targetIndex === 0
+                ? 0
+                : symbols.slice(0, targetIndex).join(", ").length +
+                  (targetIndex > 0 ? 2 : 0);
+            terminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(terminalsInputRef, newPos);
+          }
+        }, 0);
+      }
+      return;
+    }
+
+    if (key === "Delete") {
+      e.preventDefault();
+
+      const symbols = parseSymbolString(value);
+      if (symbols.length === 0) return;
+
+      // Простая логика: удаляем символ справа от курсора
+      let targetIndex = -1;
+      let currentPos = 0;
+
+      // Находим символ, который находится справа от курсора
+      for (let i = 0; i < symbols.length; i++) {
+        const symbolStart = currentPos;
+        const symbolEnd = currentPos + symbols[i].length + (i > 0 ? 2 : 0); // +2 для ", "
+
+        if (cursorPos >= symbolStart && cursorPos < symbolEnd) {
+          targetIndex = i;
+          break;
+        } else if (cursorPos <= symbolStart) {
+          targetIndex = i;
+          break;
+        }
+        currentPos = symbolEnd;
+      }
+
+      if (targetIndex >= 0) {
+        symbols.splice(targetIndex, 1);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, terminals: newValue }));
+
+        // Курсор остается на том же месте
+        setTimeout(() => {
+          if (terminalsInputRef.current) {
+            const newPos =
+              targetIndex === 0
+                ? 0
+                : symbols.slice(0, targetIndex).join(", ").length +
+                  (targetIndex > 0 ? 2 : 0);
+            terminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(terminalsInputRef, newPos);
+          }
+        }, 0);
+      }
+      return;
+    }
+
+    if (key.length === 1) {
+      e.preventDefault();
+
+      if (validateTerminals(key)) {
+        const symbols = parseSymbolString(value);
+
+        // Специальная обработка для символа ъ (эпсилон)
+        if (key === "ъ") {
+          // Проверяем, есть ли уже эпсилон в терминалах
+          if (symbols.includes("ъ")) {
+            setErrors((prev) => ({
+              ...prev,
+              terminals: `Символ эпсилон (ъ → ε) уже существует в множестве терминальных символов`,
+            }));
+            setTimeout(() => {
+              setErrors((prev) => ({ ...prev, terminals: "" }));
+            }, 3000);
+            return;
+          }
+        }
+
+        // Специальная обработка для пробела - сохраняем как _
+        let symbolToAdd = key;
+        let displaySymbol = key;
+        if (key === " ") {
+          symbolToAdd = "_";
+          displaySymbol = "_";
+          // Проверяем дублирование пробела
+          if (symbols.includes("_")) {
+            setErrors((prev) => ({
+              ...prev,
+              terminals: `Символ пробела (_) уже существует в множестве терминальных символов`,
+            }));
+            setTimeout(() => {
+              setErrors((prev) => ({ ...prev, terminals: "" }));
+            }, 3000);
+            return;
+          }
+        }
+
+        // Проверяем дублирование для обычных символов
+        if (key !== "ъ" && symbols.includes(symbolToAdd)) {
+          setErrors((prev) => ({
+            ...prev,
+            terminals: `Символ "${displaySymbol}" уже существует в множестве терминальных символов`,
+          }));
+          setTimeout(() => {
+            setErrors((prev) => ({ ...prev, terminals: "" }));
+          }, 3000);
+          return;
+        }
+
+        // Находим позицию вставки на основе курсора
+        let insertIndex = symbols.length;
+        let currentPos = 0;
+
+        for (let i = 0; i < symbols.length; i++) {
+          const symbolEnd = currentPos + symbols[i].length + (i > 0 ? 2 : 0);
+          if (cursorPos <= currentPos + (i > 0 ? 2 : 0)) {
+            insertIndex = i;
+            break;
+          }
+          currentPos = symbolEnd;
+        }
+
+        symbols.splice(insertIndex, 0, symbolToAdd);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, terminals: newValue }));
+        setErrors((prev) => ({ ...prev, terminals: "" }));
+
+        // Устанавливаем курсор после вставленного символа
+        setTimeout(() => {
+          if (terminalsInputRef.current) {
+            const symbolsBeforeAndIncluding = symbols.slice(0, insertIndex + 1);
+            const newPos =
+              symbolsBeforeAndIncluding.join(", ").length +
+              (insertIndex < symbols.length - 1 ? 2 : 0);
+            terminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(terminalsInputRef, newPos);
+          }
+        }, 0);
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          terminals:
+            "Можно вводить только русские строчные символы (а-я), пробел (_) и символ эпсилон (ъ → ε)",
+        }));
+        setTimeout(() => {
+          setErrors((prev) => ({ ...prev, terminals: "" }));
+        }, 3000);
+      }
+    }
+  };
+
+  // Обработка ввода нетерминальных символов
+  const handleNonTerminalsInput = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    const input = e.currentTarget;
+    const value = input.value;
+    const key = e.key;
+    const cursorPos = input.selectionStart || 0;
+
+    if (key === "Backspace") {
+      e.preventDefault();
+
+      if (cursorPos === 0) return; // Нечего удалять слева
+
+      const symbols = parseSymbolString(value);
+      if (symbols.length === 0) return;
+
+      // Исправленная логика: находим символ строго слева от курсора
+      let targetIndex = -1;
+      let currentPos = 0;
+
+      // Проходим по всем символам и находим тот, который заканчивается перед курсором
+      for (let i = 0; i < symbols.length; i++) {
+        const symbolStart = currentPos;
+        const symbolEnd = currentPos + symbols[i].length;
+        const nextPos = symbolEnd + (i < symbols.length - 1 ? 2 : 0); // +2 для ", " если есть следующий символ
+
+        // Если курсор находится в пределах символа или сразу после него (включая запятую и пробел)
+        if (cursorPos > symbolStart && cursorPos <= nextPos) {
+          targetIndex = i;
+          break;
+        }
+
+        currentPos = nextPos;
+      }
+
+      // Если не нашли символ в цикле, значит курсор в самом конце - удаляем последний символ
+      if (targetIndex === -1 && symbols.length > 0) {
+        targetIndex = symbols.length - 1;
+      }
+
+      // Запрещаем удаление символа S
+      if (targetIndex >= 0 && symbols[targetIndex] === "S") {
+        setErrors((prev) => ({
+          ...prev,
+          nonTerminals: "Символ S (начальный символ) нельзя удалять",
+        }));
+        setTimeout(() => {
+          setErrors((prev) => ({ ...prev, nonTerminals: "" }));
+        }, 3000);
+        return;
+      }
+
+      if (targetIndex >= 0) {
+        symbols.splice(targetIndex, 1);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, nonTerminals: newValue }));
+
+        // Устанавливаем курсор в позицию удаленного символа
+        setTimeout(() => {
+          if (nonTerminalsInputRef.current) {
+            const newPos =
+              targetIndex === 0
+                ? 0
+                : symbols.slice(0, targetIndex).join(", ").length +
+                  (targetIndex > 0 ? 2 : 0);
+            nonTerminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(nonTerminalsInputRef, newPos);
+          }
+        }, 0);
+      }
+      return;
+    }
+
+    if (key === "Delete") {
+      e.preventDefault();
+
+      const symbols = parseSymbolString(value);
+      if (symbols.length === 0) return;
+
+      // Простая логика: удаляем символ справа от курсора
+      let targetIndex = -1;
+      let currentPos = 0;
+
+      // Находим символ, который находится справа от курсора
+      for (let i = 0; i < symbols.length; i++) {
+        const symbolStart = currentPos;
+        const symbolEnd = currentPos + symbols[i].length + (i > 0 ? 2 : 0); // +2 для ", "
+
+        if (cursorPos >= symbolStart && cursorPos < symbolEnd) {
+          targetIndex = i;
+          break;
+        } else if (cursorPos <= symbolStart) {
+          targetIndex = i;
+          break;
+        }
+        currentPos = symbolEnd;
+      }
+
+      // Запрещаем удаление символа S
+      if (targetIndex >= 0 && symbols[targetIndex] === "S") {
+        setErrors((prev) => ({
+          ...prev,
+          nonTerminals: "Символ S (начальный символ) нельзя удалять",
+        }));
+        setTimeout(() => {
+          setErrors((prev) => ({ ...prev, nonTerminals: "" }));
+        }, 3000);
+        return;
+      }
+
+      if (targetIndex >= 0) {
+        symbols.splice(targetIndex, 1);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, nonTerminals: newValue }));
+
+        // Курсор остается на том же месте
+        setTimeout(() => {
+          if (nonTerminalsInputRef.current) {
+            const newPos =
+              targetIndex === 0
+                ? 0
+                : symbols.slice(0, targetIndex).join(", ").length +
+                  (targetIndex > 0 ? 2 : 0);
+            nonTerminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(nonTerminalsInputRef, newPos);
+          }
+        }, 0);
+      }
+      return;
+    }
+
+    if (key.length === 1) {
+      e.preventDefault();
+
+      if (validateNonTerminals(key)) {
+        const symbols = parseSymbolString(value);
+
+        // Проверяем дублирование
+        if (symbols.includes(key)) {
+          setErrors((prev) => ({
+            ...prev,
+            nonTerminals: `Символ "${key}" уже существует в множестве нетерминальных символов`,
+          }));
+          setTimeout(() => {
+            setErrors((prev) => ({ ...prev, nonTerminals: "" }));
+          }, 3000);
+          return;
+        }
+
+        // Находим позицию вставки на основе курсора
+        let insertIndex = symbols.length;
+        let currentPos = 0;
+
+        for (let i = 0; i < symbols.length; i++) {
+          const symbolEnd = currentPos + symbols[i].length + (i > 0 ? 2 : 0);
+          if (cursorPos <= currentPos + (i > 0 ? 2 : 0)) {
+            insertIndex = i;
+            break;
+          }
+          currentPos = symbolEnd;
+        }
+
+        symbols.splice(insertIndex, 0, key);
+        const newValue = formatSymbolString(symbols);
+        setGrammarForm((prev) => ({ ...prev, nonTerminals: newValue }));
+        setErrors((prev) => ({ ...prev, nonTerminals: "" }));
+
+        // Устанавливаем курсор после вставленного символа
+        setTimeout(() => {
+          if (nonTerminalsInputRef.current) {
+            const symbolsBeforeAndIncluding = symbols.slice(0, insertIndex + 1);
+            const newPos =
+              symbolsBeforeAndIncluding.join(", ").length +
+              (insertIndex < symbols.length - 1 ? 2 : 0);
+            nonTerminalsInputRef.current.setSelectionRange(newPos, newPos);
+            scrollToCursor(nonTerminalsInputRef, newPos);
+          }
+        }, 0);
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          nonTerminals:
+            "Можно вводить только английские прописные символы (A-Z)",
+        }));
+        setTimeout(() => {
+          setErrors((prev) => ({ ...prev, nonTerminals: "" }));
+        }, 3000);
+      }
+    }
+  };
+
+  // Валидация начального символа
+  const handleStartSymbolInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const key = e.key;
+
+    if (key === "Backspace") {
+      setGrammarForm((prev) => ({ ...prev, startSymbol: "" }));
+      setErrors((prev) => ({ ...prev, startSymbol: "" }));
+      return;
+    }
+
+    if (key.length === 1) {
+      e.preventDefault();
+
+      if (validateNonTerminals(key)) {
+        const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+        if (nonTerminals.includes(key)) {
+          setGrammarForm((prev) => ({ ...prev, startSymbol: key }));
+          setErrors((prev) => ({ ...prev, startSymbol: "" }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            startSymbol:
+              "Символ должен существовать в множестве нетерминальных символов",
+          }));
+          setTimeout(() => {
+            setErrors((prev) => ({ ...prev, startSymbol: "" }));
+          }, 3000);
+        }
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          startSymbol:
+            "Можно вводить только английские прописные символы (A-Z)",
+        }));
+        setTimeout(() => {
+          setErrors((prev) => ({ ...prev, startSymbol: "" }));
+        }, 3000);
+      }
+    }
+  };
+
+  const getTerminalsList = (): string[] => {
+    const userTerminals = parseSymbolString(grammarForm.terminals).map(
+      (symbol) => {
+        if (symbol === "_") return " "; // Подчеркивание в пробел
+        if (symbol === "ъ") return EPSILON; // ъ в эпсилон
+        return symbol;
+      }
+    );
+    // Логически эпсилон всегда есть в VT, но не отображается в поле
+    // Если пользователь ввел ъ, то эпсилон уже в списке
+    const hasEpsilon = userTerminals.includes(EPSILON);
+    return hasEpsilon ? userTerminals : [...userTerminals, EPSILON];
+  };
+
+  const getNonTerminalsList = (): string[] => {
+    return parseSymbolString(grammarForm.nonTerminals);
+  };
+
+  // Функция для сортировки правил по порядку нетерминальных символов в VN
+  const sortRulesByNonTerminalOrder = (rules: ProductionRule[]): ProductionRule[] => {
+    const nonTerminals = getNonTerminalsList();
+    
+    return [...rules].sort((a, b) => {
+      const indexA = nonTerminals.indexOf(a.left);
+      const indexB = nonTerminals.indexOf(b.left);
+      
+      // Если оба символа найдены в VN, сортируем по их позиции
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+      
+      // Если один символ не найден, он идет в конец
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      
+      // Если оба не найдены, сохраняем исходный порядок
+      return 0;
+    });
+  };
+
+  // Функция для проверки валидности правила относительно текущих нетерминальных символов
+  const isRuleValid = (rule: ProductionRule, nonTerminals: string[]): boolean => {
+    // Проверяем левую часть
+    if (!nonTerminals.includes(rule.left)) {
+      return false;
+    }
+    
+    // Проверяем правую часть - все нетерминальные символы должны существовать в VN
+    for (const char of rule.right) {
+      // Если символ является нетерминальным (заглавная латинская буква)
+      if (/^[A-Z]$/.test(char)) {
+        if (!nonTerminals.includes(char)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
+  const validateRuleLeft = (
+    value: string
+  ): { isValid: boolean; errorMessage?: string } => {
+    if (value.length === 0) {
+      return { isValid: true }; // Пустое значение допустимо во время ввода
+    }
+
+    if (value.length > 1) {
+      return {
+        isValid: false,
+        errorMessage: "Можно вводить только один символ из VN",
+      };
+    }
+
+    const nonTerminals = getNonTerminalsList();
+    if (nonTerminals.length === 0) {
+      return {
+        isValid: false,
+        errorMessage: "Сначала определите нетерминальные символы (VN)",
+      };
+    }
+
+    if (!nonTerminals.includes(value)) {
+      return {
+        isValid: false,
+        errorMessage: `Символ "${value}" отсутствует в VN. Доступные: ${nonTerminals.join(
+          ", "
+        )}`,
+      };
+    }
+
+    return { isValid: true };
+  };
+
+  const validateRuleRight = (
+    value: string
+  ): { isValid: boolean; errorMessage?: string } => {
+    if (value.length === 0) {
+      return { isValid: true }; // Пустое значение допустимо во время ввода
+    }
+
+    const terminals = getTerminalsList(); // уже преобразует _ в пробел
+    const nonTerminals = getNonTerminalsList();
+    const allSymbols = [...terminals, ...nonTerminals];
+
+    if (terminals.length <= 1 && nonTerminals.length === 0) {
+      // terminals всегда содержит EPSILON
+      return {
+        isValid: false,
+        errorMessage:
+          "Сначала определите терминальные (VT) и нетерминальные (VN) символы",
+      };
+    }
+
+    // Проверяем каждый символ в правой части
+    for (let char of value) {
+      if (!allSymbols.includes(char)) {
+        return {
+          isValid: false,
+          errorMessage: `Символ "${char}" отсутствует в VT или VN`,
+        };
+      }
+    }
+    return { isValid: true };
+  };
+
+  const handleRuleInputChange = (field: "left" | "right", value: string) => {
+    // Преобразуем _ обратно в пробел для внутренней обработки
+    const actualValue = value.replace(/_/g, " ");
+    const newErrors = { ...errors };
+
+    if (field === "left") {
+      const validation = validateRuleLeft(actualValue);
+
+      if (!validation.isValid && validation.errorMessage) {
+        newErrors.ruleLeft = validation.errorMessage;
+      } else {
+        delete newErrors.ruleLeft;
+      }
+
+      if (validation.isValid || actualValue.length === 0) {
+        setNewRule((prev) => ({
+          ...prev,
+          [field]: actualValue,
+        }));
+      }
+    } else {
+      // Для правой части заменяем ъ на эпсилон
+      let processedValue = actualValue.replace(/ъ/g, EPSILON);
+
+      // Проверяем только на множественные эпсилоны в результате
+      const epsilonCount = (processedValue.match(/ε/g) || []).length;
+      if (epsilonCount > 1) {
+        newErrors.ruleRight = "Можно вводить только один пустой символ (ъ)";
+      } else {
+        // Проверяем валидность остальных символов
+        const validation = validateRuleRight(processedValue);
+        if (!validation.isValid && validation.errorMessage) {
+          newErrors.ruleRight = validation.errorMessage;
+        } else {
+          delete newErrors.ruleRight;
+        }
+
+        if (validation.isValid || processedValue.length === 0) {
+          setNewRule((prev) => ({
+            ...prev,
+            [field]: processedValue,
+          }));
+        }
+      }
+    }
+
+    setErrors(newErrors);
+  };
+
+  const addRule = () => {
+    if (newRule.left && newRule.right) {
+      // Проверяем циклическое правило (A → A)
+      if (newRule.left === newRule.right) {
+        setErrors((prev) => ({
+          ...prev,
+          ruleGeneral: "Нельзя создавать правило из символа в этот же символ",
+        }));
+        return;
+      }
+
+      // Проверяем уникальность правила
+      if (!checkRuleUniqueness(grammarForm.rules, newRule)) {
+        setErrors((prev) => ({
+          ...prev,
+          ruleGeneral: `Правило "${newRule.left} → ${newRule.right}" уже существует`,
+        }));
+        return;
+      }
+
+      // Проверяем ограничение на количество правил (максимум 99)
+      if (grammarForm.rules.length >= 99) {
+        setErrors((prev) => ({
+          ...prev,
+          ruleGeneral: "Максимальное количество правил: 99",
+        }));
+        return;
+      }
+
+      // Добавляем новое правило и сортируем все правила
+      const newRules = [...grammarForm.rules, { ...newRule }];
+      
+      // Сортируем правила по порядку нетерминальных символов
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      const sortedRules = [...newRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        // Если оба символа найдены в VN, сортируем по их позиции
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        // Если один символ не найден, он идет в конец
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        // Если оба не найдены, сохраняем исходный порядок
+        return 0;
+      });
+
+      setGrammarForm((prev) => ({
+        ...prev,
+        rules: sortedRules,
+      }));
+      setNewRule({ left: "", right: "" });
+      setShowAddRule(false);
+      // Очищаем ошибки при успешном добавлении
+      setErrors((prev) => ({
+        ...prev,
+        ruleLeft: "",
+        ruleRight: "",
+        ruleGeneral: "",
+      }));
+    }
+  };
+
+  const removeRule = (index: number) => {
+    setGrammarForm((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index),
+    }));
+  };
+
+  const clearGrammar = () => {
+    const defaultGrammar = {
+      terminals: "",
+      nonTerminals: "S",
+      startSymbol: "S",
+      rules: [],
+    };
+    setGrammarForm(defaultGrammar);
+    setNewRule({ left: "", right: "" });
+    setShowAddRule(false);
+    setErrors({});
+    // Очищаем sessionStorage
+    sessionStorage.removeItem("currentGrammar");
+  };
+
+  const saveGrammar = () => {
+    const grammar: Grammar = {
+      terminals: getTerminalsList(),
+      nonTerminals: getNonTerminalsList(),
+      startSymbol: grammarForm.startSymbol,
+      rules: grammarForm.rules,
+    };
+
+    onSaveGrammar(grammar);
+    onNavigate("menu");
+  };
+
+  const isFormValid = () => {
+    // Проверяем, что есть непустые ошибки, исключая ошибки правил если форма добавления правила закрыта
+    const relevantErrors = showAddRule
+      ? errors // Если форма добавления правила открыта, учитываем все ошибки
+      : Object.fromEntries(
+          Object.entries(errors).filter(
+            ([key]) => !key.startsWith("rule") // Исключаем ошибки правил если форма закрыта
+          )
+        );
+
+    const hasErrors = Object.values(relevantErrors).some(
+      (error) => error && error.trim().length > 0
+    );
+
+    return (
+      grammarForm.terminals.length > 0 &&
+      grammarForm.nonTerminals.length > 0 &&
+      grammarForm.startSymbol.length > 0 &&
+      grammarForm.rules.length > 0 &&
+      !hasErrors
+    );
+  };
+
+  return (
+    <div className="grammar-page">
+      <div className="page-container">
+        <div className="page-header">
+          <button className="back-button" onClick={() => onNavigate("menu")}>
+            ← Назад
+          </button>
+          <h1>Ввод грамматики</h1>
+        </div>
+
+        <div className="page-content">
+          <div className="grammar-form">
+            <h2>Определение грамматики G = ⟨VT, VN, P, S⟩</h2>
+
+            {/* Терминальные символы */}
+            <div className="form-row">
+              <label className="form-label">VT (терминальные символы):</label>
+              <div className="input-container">
+                <input
+                  ref={terminalsInputRef}
+                  type="text"
+                  className={`form-input ${errors.terminals ? "error" : ""}`}
+                  value={displayTerminals(grammarForm.terminals)}
+                  onKeyDown={handleTerminalsInput}
+                  onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
+                  placeholder="а, б, в, _ (пробел) ..."
+                />
+                {errors.terminals && (
+                  <FieldNotification
+                    type="error"
+                    message={errors.terminals}
+                    show={true}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Нетерминальные символы */}
+            <div className="form-row">
+              <label className="form-label">VN (нетерминальные символы):</label>
+              <div className="input-container">
+                <input
+                  ref={nonTerminalsInputRef}
+                  type="text"
+                  className={`form-input ${errors.nonTerminals ? "error" : ""}`}
+                  value={grammarForm.nonTerminals}
+                  onKeyDown={handleNonTerminalsInput}
+                  onChange={() => {}} // Пустая функция, так как изменения обрабатываются в onKeyDown
+                  placeholder="A, B, C..."
+                />
+                {errors.nonTerminals && (
+                  <FieldNotification
+                    type="error"
+                    message={errors.nonTerminals}
+                    show={true}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Начальный символ */}
+            <div className="form-row">
+              <label className="form-label">S (начальный символ):</label>
+              <div className="input-container">
+                <input
+                  type="text"
+                  className="form-input start-symbol readonly"
+                  value={grammarForm.startSymbol}
+                  readOnly
+                  placeholder="S (фиксированный)"
+                />
+              </div>
+            </div>
+
+            {/* Правила вывода */}
+            <div className="form-row">
+              <label className="form-label">P (правила вывода):</label>
+
+              <div className="rules-container">
+                {grammarForm.rules.map((rule, index) => (
+                  <div key={index} className="rule-item">
+                    <span className="rule-number">{index + 1}.</span>
+                    <span className="rule-text">
+                      {rule.left} → {displayEpsilon(rule.right)}
+                    </span>
+                    <button
+                      className="remove-rule-btn"
+                      onClick={() => removeRule(index)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {!showAddRule ? (
+                  <button
+                    className="add-rule-btn"
+                    onClick={() => setShowAddRule(true)}
+                    disabled={
+                      !grammarForm.nonTerminals ||
+                      grammarForm.rules.length >= 99
+                    }
+                  >
+                    + Добавить правило
+                    {grammarForm.rules.length >= 99 ? " (макс. 99)" : ""}
+                  </button>
+                ) : (
+                  <div className="add-rule-container">
+                    <div className="add-rule-form">
+                      {/* Уведомления об ошибках правил */}
+                      <div className="rule-notifications">
+                        {errors.ruleLeft && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleLeft}
+                            show={true}
+                          />
+                        )}
+                        {errors.ruleRight && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleRight}
+                            show={true}
+                          />
+                        )}
+                        {errors.ruleGeneral && (
+                          <FieldNotification
+                            type="error"
+                            message={errors.ruleGeneral}
+                            show={true}
+                          />
+                        )}
+                      </div>
+
+                      <input
+                        type="text"
+                        className={`rule-input left ${
+                          errors.ruleLeft ? "error" : ""
+                        }`}
+                        value={displayEpsilon(newRule.left)}
+                        onChange={(e) =>
+                          handleRuleInputChange("left", e.target.value)
+                        }
+                        maxLength={1}
+                      />
+                      <span className="arrow">→</span>
+                      <input
+                        type="text"
+                        className={`rule-input right ${
+                          errors.ruleRight ? "error" : ""
+                        }`}
+                        value={displayEpsilon(newRule.right)}
+                        onChange={(e) =>
+                          handleRuleInputChange("right", e.target.value)
+                        }
+                      />
+                      <button
+                        className="confirm-rule-btn"
+                        onClick={addRule}
+                        disabled={!newRule.left || !newRule.right}
+                      >
+                        ✓
+                      </button>
+                      <button
+                        className="cancel-rule-btn"
+                        onClick={() => {
+                          setShowAddRule(false);
+                          setNewRule({ left: "", right: "" });
+                          // Очищаем все ошибки правил при отмене
+                          setErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.ruleLeft;
+                            delete newErrors.ruleRight;
+                            delete newErrors.ruleGeneral;
+                            return newErrors;
+                          });
+                        }}
+                      >
+                        ✗
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button
+                className="save-grammar-btn"
+                onClick={saveGrammar}
+                disabled={!isFormValid()}
+              >
+                Сохранить грамматику
+              </button>
+              <button
+                className="clear-grammar-btn"
+                onClick={clearGrammar}
+                title="Очистить все поля и правила"
+              >
+                Очистить грамматику
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GrammarPage;

@@ -1,0 +1,584 @@
+/* Word Generation Page Styles */
+.grammar-work-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+  gap: 1rem;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0 1rem 1rem 1rem;
+  box-sizing: border-box;
+}
+
+/* Поле для отображения деривации */
+.derivation-display-field {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  height: 100px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.derivation-scroll-container {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem 1rem 1.5rem 1rem; /* Добавили нижний отступ для предотвращения сдвига при скроллбаре */
+  display: flex;
+  align-items: center;
+}
+
+.derivation-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.derivation-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Линия с шагами деривации */
+.derivation-steps-line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: max-content;
+  height: 100%;
+}
+
+/* Результат каждого шага */
+.derivation-step-result {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem 0.5rem;
+  font-family: "Courier New", monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a202c;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Контейнер со стрелочкой и номером правила */
+.derivation-arrow-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.derivation-rule-number {
+  color: #667eea;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.derivation-arrow {
+  font-size: 1.5rem;
+  color: #667eea;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Секция с правилами */
+.rules-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.rules-list h3 {
+  margin: 0 0 1rem 0;
+  color: #1a202c;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.keyboard-hint {
+  background: #e6f3ff;
+  color: #0066cc;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  border: 1px solid #cce6ff;
+  flex-shrink: 0;
+}
+
+.rules-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  margin-right: -0.5rem;
+}
+
+.rules-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rules-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.rules-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.rules-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rule-btn {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rule-btn:hover:not(.disabled) {
+  border-color: #667eea;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rule-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.derivation-rule-number {
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rule-number {
+  color: #667eea;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.rule-btn .rule-number {
+  background: #667eea;
+  color: white;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+  width: auto;
+  height: auto;
+  display: inline-flex;
+}
+
+.rule-content {
+  font-family: "Courier New", monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a202c;
+}
+
+/* Кнопки управления */
+.control-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.reset-btn,
+.undo-btn,
+.new-word-btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reset-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.reset-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.new-word-btn {
+  background: #22c55e;
+  color: white;
+}
+
+.new-word-btn:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.undo-btn {
+  background: #f59e0b;
+  color: white;
+}
+
+.undo-btn:hover:not(.disabled) {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.undo-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+/* Сообщения */
+.no-rules-message {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.completion-message {
+  text-align: center;
+  color: #059669;
+  font-weight: 600;
+  padding: 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+}
+
+/* Секция сохраненных слов */
+.saved-words-section {
+  flex-shrink: 0;
+  position: relative;
+  margin-top: auto;
+}
+
+.saved-words-btn {
+  width: 100%;
+  background: #1e293b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.saved-words-btn:hover {
+  background: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Выпадающий список сохраненных слов */
+.saved-words-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  margin-bottom: 0.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.saved-words-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.saved-words-dropdown::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.saved-words-dropdown::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.saved-words-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.saved-words-list {
+  padding: 0.5rem;
+}
+
+.saved-word-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.saved-word-item:hover {
+  background-color: #f8fafc;
+}
+
+.word-number {
+  color: #667eea;
+  font-weight: 600;
+  min-width: 24px;
+  flex-shrink: 0;
+}
+
+.word-text {
+  font-family: "Courier New", monospace;
+  font-size: 1rem;
+  color: #1a202c;
+  flex: 1;
+  white-space: pre; /* Сохраняет все пробелы и пробельные символы как есть */
+}
+
+.saved-word-item.empty-state {
+  justify-content: center;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.saved-word-item.empty-state .word-text {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Дополнительные стили */
+.primary-button {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-button:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .grammar-work-container {
+    height: calc(100vh - 180px);
+    max-height: calc(100vh - 180px);
+    padding: 0 0.5rem 0.5rem 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .derivation-display-field {
+    height: 80px;
+  }
+
+  .rules-section {
+    padding: 1rem;
+  }
+
+  .rules-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .control-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Стили для сохраненных деривационных цепочек */
+.saved-derivation-item {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.saved-derivation-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-color: #007bff;
+}
+
+.saved-derivation-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.derivation-number {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 600;
+  min-width: 1.5rem;
+  flex-shrink: 0;
+}
+
+.delete-derivation-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.delete-derivation-btn:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.delete-derivation-btn:active {
+  transform: scale(0.95);
+}
+
+.derivation-chain {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #007bff #f1f1f1;
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.derivation-chain::-webkit-scrollbar {
+  height: 6px;
+}
+
+.derivation-chain::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.derivation-chain::-webkit-scrollbar-thumb {
+  background: #007bff;
+  border-radius: 3px;
+}
+
+.derivation-chain::-webkit-scrollbar-thumb:hover {
+  background: #0056b3;
+}
+
+.derivation-step {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
+.derivation-step-result {
+  display: inline-block;
+  padding: 0.1rem 0.3rem;
+  background: #f1f3f5;
+  border-radius: 3px;
+  font-weight: 500;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.derivation-transition {
+  display: inline-block;
+  color: #007bff;
+  font-weight: bold;
+  margin: 0 0.3rem;
+  font-size: 0.9rem;
+}
+
+.final-result {
+  background: #d4edda !important;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  font-weight: bold;
+}
