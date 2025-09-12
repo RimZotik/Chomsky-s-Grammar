@@ -137,7 +137,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     height: 800,
     width: 600,
-    resizable: false, // Запрет изменения размера
+    resizable: true, // Запрет изменения размера
     maximizable: false, // Запрет разворачивания на весь экран
     center: true, // Центрирование окна
     show: false, // Не показывать окно до полной загрузки

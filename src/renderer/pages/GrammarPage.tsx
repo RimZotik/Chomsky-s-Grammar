@@ -92,6 +92,30 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           : "S";
       }
       grammarForm.startSymbol = "S"; // Фиксируем начальный символ как S
+      
+      // Сначала фильтруем и сортируем правила при загрузке
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      
+      // Удаляем правила которые содержат несуществующие нетерминальные символы
+      const filteredRules = grammarForm.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Сортируем оставшиеся правила
+      grammarForm.rules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        return 0;
+      });
+      
       setGrammarForm(grammarForm);
       return;
     }
@@ -106,6 +130,30 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
           : "S";
       }
       savedGrammar.startSymbol = "S"; // Фиксируем начальный символ как S
+      
+      // Сначала фильтруем и сортируем правила при загрузке
+      const nonTerminals = parseSymbolString(savedGrammar.nonTerminals);
+      
+      // Удаляем правила которые содержат несуществующие нетерминальные символы
+      const filteredRules = savedGrammar.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Сортируем оставшиеся правила
+      savedGrammar.rules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        return 0;
+      });
+      
       setGrammarForm(savedGrammar);
     }
   }, [initialGrammar]);
@@ -120,6 +168,49 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
       saveGrammarToStorage(grammarForm);
     }
   }, [grammarForm]);
+
+  // Пересортировка правил при изменении порядка нетерминальных символов
+  useEffect(() => {
+    if (grammarForm.rules.length > 0) {
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      
+      // Фильтруем правила - удаляем те, которые содержат несуществующие нетерминальные символы
+      const filteredRules = grammarForm.rules.filter(rule => 
+        isRuleValid(rule, nonTerminals)
+      );
+      
+      // Затем сортируем оставшиеся правила
+      const sortedRules = [...filteredRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        // Если оба символа найдены в VN, сортируем по их позиции
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        // Если один символ не найден, он идет в конец
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        // Если оба не найдены, сохраняем исходный порядок
+        return 0;
+      });
+      
+      // Проверяем, изменились ли правила (удаление или изменение порядка)
+      const rulesChanged = grammarForm.rules.length !== sortedRules.length ||
+        grammarForm.rules.some((rule, index) => 
+          rule.left !== sortedRules[index]?.left || rule.right !== sortedRules[index]?.right
+        );
+      
+      if (rulesChanged) {
+        setGrammarForm((prev) => ({
+          ...prev,
+          rules: sortedRules,
+        }));
+      }
+    }
+  }, [grammarForm.nonTerminals]); // Запускается при изменении VN
 
   // Автоматическое скрытие уведомлений об ошибках правил
   useEffect(() => {
@@ -678,6 +769,48 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
     return parseSymbolString(grammarForm.nonTerminals);
   };
 
+  // Функция для сортировки правил по порядку нетерминальных символов в VN
+  const sortRulesByNonTerminalOrder = (rules: ProductionRule[]): ProductionRule[] => {
+    const nonTerminals = getNonTerminalsList();
+    
+    return [...rules].sort((a, b) => {
+      const indexA = nonTerminals.indexOf(a.left);
+      const indexB = nonTerminals.indexOf(b.left);
+      
+      // Если оба символа найдены в VN, сортируем по их позиции
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+      
+      // Если один символ не найден, он идет в конец
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      
+      // Если оба не найдены, сохраняем исходный порядок
+      return 0;
+    });
+  };
+
+  // Функция для проверки валидности правила относительно текущих нетерминальных символов
+  const isRuleValid = (rule: ProductionRule, nonTerminals: string[]): boolean => {
+    // Проверяем левую часть
+    if (!nonTerminals.includes(rule.left)) {
+      return false;
+    }
+    
+    // Проверяем правую часть - все нетерминальные символы должны существовать в VN
+    for (const char of rule.right) {
+      // Если символ является нетерминальным (заглавная латинская буква)
+      if (/^[A-Z]$/.test(char)) {
+        if (!nonTerminals.includes(char)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
   const validateRuleLeft = (
     value: string
   ): { isValid: boolean; errorMessage?: string } => {
@@ -822,9 +955,31 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
         return;
       }
 
+      // Добавляем новое правило и сортируем все правила
+      const newRules = [...grammarForm.rules, { ...newRule }];
+      
+      // Сортируем правила по порядку нетерминальных символов
+      const nonTerminals = parseSymbolString(grammarForm.nonTerminals);
+      const sortedRules = [...newRules].sort((a, b) => {
+        const indexA = nonTerminals.indexOf(a.left);
+        const indexB = nonTerminals.indexOf(b.left);
+        
+        // Если оба символа найдены в VN, сортируем по их позиции
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        
+        // Если один символ не найден, он идет в конец
+        if (indexA === -1 && indexB !== -1) return 1;
+        if (indexA !== -1 && indexB === -1) return -1;
+        
+        // Если оба не найдены, сохраняем исходный порядок
+        return 0;
+      });
+
       setGrammarForm((prev) => ({
         ...prev,
-        rules: [...prev.rules, { ...newRule }],
+        rules: sortedRules,
       }));
       setNewRule({ left: "", right: "" });
       setShowAddRule(false);
@@ -1038,7 +1193,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         onChange={(e) =>
                           handleRuleInputChange("left", e.target.value)
                         }
-                        placeholder="A"
                         maxLength={1}
                       />
                       <span className="arrow">→</span>
@@ -1051,7 +1205,6 @@ const GrammarPage: React.FC<GrammarPageProps> = ({
                         onChange={(e) =>
                           handleRuleInputChange("right", e.target.value)
                         }
-                        placeholder="aB"
                       />
                       <button
                         className="confirm-rule-btn"

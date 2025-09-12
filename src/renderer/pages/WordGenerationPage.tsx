@@ -13,6 +13,13 @@ interface DerivationStep {
   ruleIndex?: number;
 }
 
+interface SavedDerivation {
+  id: string;
+  steps: DerivationStep[];
+  timestamp: number;
+  finalWord: string;
+}
+
 const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   user,
   grammar,
@@ -23,22 +30,66 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   ]);
   const [availableRules, setAvailableRules] = useState<ProductionRule[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [savedWords, setSavedWords] = useState<string[]>([]);
+  const [savedDerivations, setSavedDerivations] = useState<SavedDerivation[]>([]);
   const [showSavedWords, setShowSavedWords] = useState(false);
   const savedWordsRef = useRef<HTMLDivElement>(null);
 
   const derivationScrollRef = useRef<HTMLDivElement>(null);
 
+  // Функция для преобразования номера правила в 16CC формат (1-9, A-Z)
+  const numberToHex = (num: number): string => {
+    if (num < 1) return "";
+    if (num <= 9) return num.toString();
+    if (num <= 35) return String.fromCharCode(65 + num - 10); // A-Z для 10-35
+    return ""; // Больше 35 не поддерживается
+  };
+
+  // Функция для преобразования клавиши в номер правила
+  const keyToRuleIndex = (key: string): number => {
+    // Цифры 1-9
+    if (key >= "1" && key <= "9") {
+      return parseInt(key) - 1; // -1 так как индексы начинаются с 0
+    }
+    // Буквы A-Z (как верхний, так и нижний регистр)
+    const upperKey = key.toUpperCase();
+    if (upperKey >= "A" && upperKey <= "Z") {
+      return upperKey.charCodeAt(0) - 65 + 9; // A=9, B=10, ..., Z=34
+    }
+    return -1; // Недопустимая клавиша
+  };
+
+  // Обработчик нажатий клавиш
+  const handleKeyPress = (event: KeyboardEvent) => {
+    // Игнорируем если деривация завершена
+    if (isCompleted || !grammar) return;
+
+    const ruleIndex = keyToRuleIndex(event.key);
+    if (ruleIndex === -1 || ruleIndex >= grammar.rules.length) return;
+
+    const rule = grammar.rules[ruleIndex];
+    
+    // Применяем правило - функция applyRule сама проверит доступность
+    applyRule(rule, ruleIndex);
+  };
+
+  // Добавляем и убираем обработчик клавиатуры
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyPress);
+    return () => {
+      document.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [isCompleted, grammar]); // Убрали derivationSteps из зависимостей
+
   // Функции для сохранения и загрузки состояния генерации
   const saveGenerationState = (
     steps: DerivationStep[],
-    words: string[],
+    derivations: SavedDerivation[],
     completed: boolean
   ) => {
     try {
       const state = {
         derivationSteps: steps,
-        savedWords: words,
+        savedDerivations: derivations,
         isCompleted: completed,
         grammarId: grammar ? JSON.stringify(grammar.rules) : null, // ID для связи с грамматикой
       };
@@ -61,7 +112,7 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
             derivationSteps: state.derivationSteps || [
               { result: grammar.startSymbol || "S" },
             ],
-            savedWords: state.savedWords || [],
+            savedDerivations: state.savedDerivations || [],
             isCompleted: state.isCompleted || false,
           };
         }
@@ -112,7 +163,7 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
 
       if (savedState) {
         setDerivationSteps(savedState.derivationSteps);
-        setSavedWords(savedState.savedWords);
+        setSavedDerivations(savedState.savedDerivations);
         setIsCompleted(savedState.isCompleted);
         updateAvailableRules(
           savedState.derivationSteps[savedState.derivationSteps.length - 1]
@@ -122,7 +173,7 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
         // Если нет сохраненного состояния, начинаем с начального символа
         const startSymbol = grammar.startSymbol || "S";
         setDerivationSteps([{ result: startSymbol }]);
-        setSavedWords([]);
+        setSavedDerivations([]);
         setIsCompleted(false);
         updateAvailableRules(startSymbol);
       }
@@ -132,9 +183,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   // Автосохранение состояния при изменениях
   useEffect(() => {
     if (grammar && derivationSteps.length > 0) {
-      saveGenerationState(derivationSteps, savedWords, isCompleted);
+      saveGenerationState(derivationSteps, savedDerivations, isCompleted);
     }
-  }, [derivationSteps, savedWords, isCompleted, grammar]);
+  }, [derivationSteps, savedDerivations, isCompleted, grammar]);
 
   // Обновление доступных правил на основе текущего результата
   const updateAvailableRules = (currentResult: string) => {
@@ -162,24 +213,32 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     setIsCompleted(!hasNonTerminals);
   };
 
-  // Автоматическое сохранение завершенных слов
+  // Автоматическое сохранение завершенных деривации
   useEffect(() => {
     if (isCompleted && derivationSteps.length > 1) {
       const lastResult = derivationSteps[derivationSteps.length - 1].result;
-      const completedWord = lastResult + "."; // Добавляем точку к завершенному слову
-      console.log(
-        "Попытка сохранить слово:",
-        JSON.stringify(lastResult),
-        "с точкой:",
-        JSON.stringify(completedWord),
-        "длина:",
-        completedWord.length
+      const derivationId = `${Date.now()}-${Math.random()}`;
+      
+      const newDerivation: SavedDerivation = {
+        id: derivationId,
+        steps: [...derivationSteps],
+        timestamp: Date.now(),
+        finalWord: lastResult,
+      };
+
+      // Проверяем, не существует ли уже такая же деривация (по финальному слову и количеству шагов)
+      const isDuplicate = savedDerivations.some(
+        (saved) => 
+          saved.finalWord === lastResult && 
+          saved.steps.length === derivationSteps.length &&
+          JSON.stringify(saved.steps) === JSON.stringify(derivationSteps)
       );
-      if (!savedWords.includes(completedWord)) {
-        console.log("Сохраняем слово:", JSON.stringify(completedWord));
-        setSavedWords((prev) => [...prev, completedWord]);
+
+      if (!isDuplicate) {
+        console.log("Сохраняем новую деривацию:", newDerivation);
+        setSavedDerivations((prev) => [...prev, newDerivation]);
       } else {
-        console.log("Слово уже сохранено:", JSON.stringify(completedWord));
+        console.log("Деривация уже сохранена");
       }
     }
   }, [isCompleted, derivationSteps]);
@@ -208,22 +267,29 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
   const applyRule = (rule: ProductionRule, ruleIndex: number) => {
     if (isCompleted) return;
 
-    const currentResult = derivationSteps[derivationSteps.length - 1].result;
+    setDerivationSteps((prev) => {
+      const currentResult = prev[prev.length - 1].result;
 
-    // Проверяем, доступно ли правило
-    if (!currentResult.includes(rule.left)) return;
+      // Проверяем, доступно ли правило
+      if (!currentResult.includes(rule.left)) return prev;
 
-    // Обрабатываем ъ и ε как эпсилон (пустую строку)
-    const replacementText =
-      rule.right === "ъ" || rule.right === "ε" ? "" : rule.right;
-    const newResult = currentResult.replace(rule.left, replacementText);
+      // Обрабатываем ъ и ε как эпсилон (пустую строку)
+      const replacementText =
+        rule.right === "ъ" || rule.right === "ε" ? "" : rule.right;
+      const newResult = currentResult.replace(rule.left, replacementText);
 
-    setDerivationSteps((prev) => [
-      ...prev,
-      { result: newResult, ruleIndex: ruleIndex + 1 },
-    ]);
+      const newSteps = [
+        ...prev,
+        { result: newResult, ruleIndex: ruleIndex + 1 }, // Сохраняем 1-based номер правила
+      ];
 
-    updateAvailableRules(newResult);
+      // Обновляем доступные правила асинхронно
+      setTimeout(() => {
+        updateAvailableRules(newResult);
+      }, 0);
+
+      return newSteps;
+    });
 
     // Автопрокрутка к последнему элементу
     setTimeout(() => {
@@ -261,6 +327,56 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
     setShowSavedWords(!showSavedWords);
   };
 
+  // Функция для удаления сохраненной деривации
+  const removeSavedDerivation = (derivationId: string) => {
+    setSavedDerivations((prev) => prev.filter((d) => d.id !== derivationId));
+  };
+
+  // Компонент для отображения сохраненной деривации
+  const renderSavedDerivation = (derivation: SavedDerivation, index: number) => {
+    return (
+      <div key={derivation.id} className="saved-derivation-item">
+        <div className="saved-derivation-content">
+          <span className="derivation-number">{index + 1}.</span>
+          <div 
+            className="derivation-chain"
+            ref={(el) => {
+              if (el) {
+                // Прокручиваем в конец, чтобы сразу был виден результат
+                el.scrollLeft = el.scrollWidth;
+              }
+            }}
+          >
+            {derivation.steps.map((step, stepIndex) => (
+              <React.Fragment key={stepIndex}>
+                {/* Результат шага */}
+                <span className="derivation-step">
+                  <span className={`derivation-step-result ${stepIndex === derivation.steps.length - 1 ? 'final-result' : ''}`}>
+                    {displayFinalWord(step.result, stepIndex === derivation.steps.length - 1)}
+                  </span>
+                </span>
+
+                {/* Стрелка и номер правила (если не последний элемент) */}
+                {stepIndex < derivation.steps.length - 1 && (
+                  <span className="derivation-transition">
+                    {numberToHex(derivation.steps[stepIndex + 1].ruleIndex || 1)}→
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <button
+            className="delete-derivation-btn"
+            onClick={() => removeSavedDerivation(derivation.id)}
+            title="Удалить деривацию"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="word-generation-page">
       <div className="page-container">
@@ -294,8 +410,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                     {index < derivationSteps.length - 1 && (
                       <div className="derivation-arrow-container">
                         <div className="derivation-rule-number">
-                          {step.ruleIndex ||
-                            derivationSteps[index + 1].ruleIndex}
+                          {numberToHex(
+                            derivationSteps[index + 1].ruleIndex || 1
+                          )}
                         </div>
                         <div className="derivation-arrow">→</div>
                       </div>
@@ -316,6 +433,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
           <div className="rules-section">
             <div className="rules-list">
               <h3>Доступные правила:</h3>
+              <div className="keyboard-hint">
+                💡 Используйте клавиши 1-9, A-Z для быстрого применения правил
+              </div>
 
               <div className="rules-content">
                 {availableRules.length === 0 ? (
@@ -341,8 +461,9 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
                           }`}
                           onClick={() => applyRule(rule, globalIndex)}
                           disabled={!isRuleAvailable}
+                          title={`Нажмите ${numberToHex(globalIndex + 1)} для быстрого применения`}
                         >
-                          <span className="rule-number">{globalIndex + 1}</span>
+                          <span className="rule-number">{numberToHex(globalIndex + 1)}</span>
                           <span className="rule-content">
                             {rule.left} → {displayEpsilon(rule.right)}
                           </span>
@@ -374,28 +495,23 @@ const WordGenerationPage: React.FC<WordGenerationPageProps> = ({
             </div>
           </div>
 
-          {/* Кнопка сохраненных слов */}
+          {/* Кнопка сохраненных деривации */}
           <div className="saved-words-section" ref={savedWordsRef}>
             <button className="saved-words-btn" onClick={toggleSavedWords}>
-              📝 Сохраненные слова ({savedWords.length})
+              📝 Сохраненные деривации ({savedDerivations.length})
             </button>
 
-            {/* Выпадающий список сохраненных слов */}
+            {/* Выпадающий список сохраненных деривации */}
             {showSavedWords && (
               <div className="saved-words-dropdown">
                 <div className="saved-words-list">
-                  {savedWords.length > 0 ? (
-                    savedWords.map((word, index) => (
-                      <div key={index} className="saved-word-item">
-                        <span className="word-number">{index + 1}.</span>
-                        <span className="word-text">
-                          {displaySavedWord(word)}
-                        </span>
-                      </div>
-                    ))
+                  {savedDerivations.length > 0 ? (
+                    savedDerivations.map((derivation, index) =>
+                      renderSavedDerivation(derivation, index)
+                    )
                   ) : (
                     <div className="saved-word-item empty-state">
-                      <span className="word-text">Нет сохраненных слов</span>
+                      <span className="word-text">Нет сохраненных деривации</span>
                     </div>
                   )}
                 </div>
